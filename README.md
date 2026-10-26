@@ -73,6 +73,17 @@ descargas van a `%USERPROFILE%\Videos\yt-dlp` (se crea sola). La sección
 
 Las rutas se guardan en `localStorage` y persisten entre sesiones.
 
+## Formatos y calidad
+
+- **Video (MP4)**: selector de calidad — Mejor disponible, 4K, 1440p, 1080p,
+  720p, 480p o 360p. La elección es un *techo* de resolución: si el video no
+  la alcanza se baja la mejor disponible sin fallar.
+- **Solo audio (MP3)**: selector de bitrate — Mejor (VBR), 320, 256, 192,
+  128 o 96 kbps.
+
+El formato y la calidad elegidos se guardan en `localStorage` y persisten
+entre sesiones.
+
 ## Compatibilidad de codecs
 
 Premiere solo importa ciertos codecs. El panel lo garantiza en dos pasos:

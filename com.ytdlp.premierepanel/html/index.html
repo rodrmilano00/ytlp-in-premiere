@@ -61,6 +61,32 @@
             </label>
         </div>
 
+        <div class="quality-row">
+            <div class="field" id="field-vq">
+                <label for="sel-vq">Calidad de video</label>
+                <select id="sel-vq">
+                    <option value="best" selected>Mejor disponible</option>
+                    <option value="2160">4K · 2160p</option>
+                    <option value="1440">QHD · 1440p</option>
+                    <option value="1080">Full HD · 1080p</option>
+                    <option value="720">HD · 720p</option>
+                    <option value="480">SD · 480p</option>
+                    <option value="360">360p</option>
+                </select>
+            </div>
+            <div class="field hidden" id="field-aq">
+                <label for="sel-aq">Bitrate de audio</label>
+                <select id="sel-aq">
+                    <option value="0" selected>Mejor (VBR)</option>
+                    <option value="320K">320 kbps</option>
+                    <option value="256K">256 kbps</option>
+                    <option value="192K">192 kbps</option>
+                    <option value="128K">128 kbps</option>
+                    <option value="96K">96 kbps</option>
+                </select>
+            </div>
+        </div>
+
         <button id="btn-download" class="btn btn-primary" disabled>
             Descargar e Importar
         </button>

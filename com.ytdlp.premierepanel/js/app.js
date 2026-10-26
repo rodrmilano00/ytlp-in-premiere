@@ -33,6 +33,11 @@
         configFeedback: document.getElementById("config-feedback"),
         configWarning: document.getElementById("config-warning"),
         url: document.getElementById("url"),
+        selVq: document.getElementById("sel-vq"),
+        selAq: document.getElementById("sel-aq"),
+        fieldVq: document.getElementById("field-vq"),
+        fieldAq: document.getElementById("field-aq"),
+        formatRadios: document.querySelectorAll('input[name="format"]'),
         btnDownload: document.getElementById("btn-download"),
         progressBar: document.getElementById("progress-bar"),
         progressText: document.getElementById("progress-text"),
@@ -174,10 +179,64 @@
         return ready;
     }
 
+    /* ---------------- Preferencias (formato/calidad) ---------------- */
+
+    var PREFS_KEY = "ytdlp.panel.prefs";
+
+    function currentFormat() {
+        var r = document.querySelector('input[name="format"]:checked');
+        return r ? r.value : "video";
+    }
+
+    /** Muestra el selector relevante según el formato elegido. */
+    function refreshQualityFields() {
+        var f = currentFormat();
+        el.fieldVq.classList.toggle("hidden", f !== "video");
+        el.fieldAq.classList.toggle("hidden", f !== "audio");
+    }
+
+    function loadPrefs() {
+        try {
+            var p = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
+            if (p.vq) el.selVq.value = p.vq;
+            if (p.aq) el.selAq.value = p.aq;
+            if (p.format) {
+                var r = document.querySelector(
+                    'input[name="format"][value="' + p.format + '"]'
+                );
+                if (r) r.checked = true;
+            }
+        } catch (e) {}
+    }
+
+    function savePrefs() {
+        try {
+            localStorage.setItem(PREFS_KEY, JSON.stringify({
+                format: currentFormat(),
+                vq: el.selVq.value,
+                aq: el.selAq.value
+            }));
+        } catch (e) {}
+    }
+
     /* ---------------- Construcción de argumentos ---------------- */
 
+    /**
+     * Cadena -f de yt-dlp: prefiere H.264+AAC; si maxHeight limita la
+     * resolución y al final hay fallback sin restricción para no fallar.
+     */
+    function videoFormatSelector(maxHeight) {
+        var h = maxHeight ? "[height<=" + maxHeight + "]" : "";
+        return "bv*[vcodec^=avc1]" + h + "[ext=mp4]+ba[acodec^=mp4a]/" +
+               "bv*[vcodec^=avc1]" + h + "+ba[acodec^=mp4a]/" +
+               "b[vcodec^=avc1]" + h + "/" +
+               "bv*" + h + "+ba/" +
+               "b" + h + "/" +
+               "bv*+ba/b";
+    }
+
     function buildArgs(cfg, url) {
-        var format = document.querySelector('input[name="format"]:checked').value;
+        var format = currentFormat();
 
         var args = [
             "--newline",                // progreso línea a línea
@@ -197,17 +256,17 @@
         }
 
         if (format === "audio") {
-            args.push("-x", "--audio-format", "mp3", "--audio-quality", "0");
+            args.push(
+                "-x", "--audio-format", "mp3",
+                "--audio-quality", el.selAq.value
+            );
         } else {
             // Preferir streams H.264+AAC (nativos de Premiere). Si el video
             // solo existe en VP9/AV1, baja el mejor disponible y luego
             // ensureCompatible() lo transcodifica con ffmpeg.
+            var maxH = el.selVq.value === "best" ? "" : el.selVq.value;
             args.push(
-                "-f",
-                "bv*[vcodec^=avc1][ext=mp4]+ba[acodec^=mp4a]/" +
-                "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/" +
-                "b[vcodec^=avc1]/" +
-                "bv*+ba/b",
+                "-f", videoFormatSelector(maxH),
                 "--merge-output-format", "mp4"
             );
         }
@@ -530,6 +589,17 @@
         if (e.key === "Enter" && !el.btnDownload.disabled) startDownload();
     });
 
+    el.formatRadios.forEach(function (r) {
+        r.addEventListener("change", function () {
+            refreshQualityFields();
+            savePrefs();
+        });
+    });
+
+    [el.selVq, el.selAq].forEach(function (sel) {
+        sel.addEventListener("change", savePrefs);
+    });
+
     el.btnDownload.addEventListener("click", startDownload);
 
     /* ---------------- Arranque ---------------- */
@@ -539,6 +609,8 @@
     }
 
     loadConfig();
+    loadPrefs();
+    refreshQualityFields();
 
     var startupCfg = getConfig();
     probeVersion(startupCfg.ytdlp, ["--version"], function (v) {
