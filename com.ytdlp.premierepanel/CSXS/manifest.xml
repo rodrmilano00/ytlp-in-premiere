@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    ExtensionBundleId="com.ytdlp.premierepanel"
+    ExtensionBundleVersion="1.0.0"
+    Version="9.0">
+
+    <ExtensionList>
+        <Extension Id="com.ytdlp.premierepanel.panel" Version="1.0.0" />
+    </ExtensionList>
+
+    <ExecutionEnvironment>
+        <HostList>
+            <!-- PPRO = Premiere Pro. Rango [13.0, 99.9] cubre CC 2019 en adelante -->
+            <Host Name="PPRO" Version="[13.0,99.9]" />
+        </HostList>
+        <LocaleList>
+            <Locale Code="All" />
+        </LocaleList>
+        <RequiredRuntimeList>
+            <RequiredRuntime Name="CSXS" Version="9.0" />
+        </RequiredRuntimeList>
+    </ExecutionEnvironment>
+
+    <DispatchInfoList>
+        <Extension Id="com.ytdlp.premierepanel.panel">
+            <DispatchInfo>
+                <Resources>
+                    <MainPath>./html/index.html</MainPath>
+                    <ScriptPath>./jsx/hostscript.jsx</ScriptPath>
+                    <!-- Elemento solicitado: declara intención de usar Node.js -->
+                    <EnableNodeJS>true</EnableNodeJS>
+                    <!-- El flag que realmente habilita Node.js + require() en el panel CEF -->
+                    <CEFCommandLine>
+                        <Parameter>--enable-nodejs</Parameter>
+                        <Parameter>--mixed-context</Parameter>
+                    </CEFCommandLine>
+                </Resources>
+                <Lifecycle>
+                    <AutoVisible>true</AutoVisible>
+                </Lifecycle>
+                <UI>
+                    <Type>Panel</Type>
+                    <Menu>YT-DLP Importer</Menu>
+                    <Geometry>
+                        <Size>
+                            <Width>360</Width>
+                            <Height>560</Height>
+                        </Size>
+                        <MinSize>
+                            <Width>300</Width>
+                            <Height>420</Height>
+                        </MinSize>
+                        <MaxSize>
+                            <Width>900</Width>
+                            <Height>1400</Height>
+                        </MaxSize>
+                    </Geometry>
+                </UI>
+            </DispatchInfo>
+        </Extension>
+    </DispatchInfoList>
+</ExtensionManifest>

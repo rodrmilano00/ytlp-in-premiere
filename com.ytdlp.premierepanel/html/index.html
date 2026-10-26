@@ -1,0 +1,83 @@
+git <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>YT-DLP Importer</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+    <header class="app-header">
+        <h1>YT-DLP Importer</h1>
+        <span id="status-dot" class="dot dot-idle" title="Estado"></span>
+    </header>
+
+    <!-- ===================== CONFIGURACIÓN ===================== -->
+    <details id="config-section" class="config">
+        <summary>Configuración</summary>
+        <div class="config-body">
+
+            <div class="field">
+                <label for="cfg-ytdlp">Ejecutable yt-dlp</label>
+                <input id="cfg-ytdlp" type="text" spellcheck="false"
+                       placeholder="C:\Tools\yt-dlp.exe  (o simplemente: yt-dlp)">
+            </div>
+
+            <div class="field">
+                <label for="cfg-ffmpeg">Ejecutable ffmpeg</label>
+                <input id="cfg-ffmpeg" type="text" spellcheck="false"
+                       placeholder="C:\Tools\ffmpeg\bin\ffmpeg.exe  (o su carpeta)">
+            </div>
+
+            <div class="field">
+                <label for="cfg-dest">Carpeta de descargas</label>
+                <input id="cfg-dest" type="text" spellcheck="false"
+                       placeholder="C:\Users\tuUsuario\Videos\Descargas">
+            </div>
+
+            <button id="btn-save-config" class="btn btn-secondary">Guardar configuración</button>
+            <p id="config-feedback" class="hint"></p>
+        </div>
+    </details>
+
+    <div id="config-warning" class="warning hidden">
+        Faltan rutas por configurar. Completa la sección
+        <strong>Configuración</strong> para habilitar la descarga.
+    </div>
+
+    <!-- ===================== DESCARGA ===================== -->
+    <section class="main">
+        <input id="url" type="text" spellcheck="false"
+               placeholder="https://www.youtube.com/watch?v=...">
+
+        <div class="format-row" role="radiogroup">
+            <label class="radio">
+                <input type="radio" name="format" value="video" checked>
+                <span>Video (MP4)</span>
+            </label>
+            <label class="radio">
+                <input type="radio" name="format" value="audio">
+                <span>Solo audio (MP3)</span>
+            </label>
+        </div>
+
+        <button id="btn-download" class="btn btn-primary" disabled>
+            Descargar e Importar
+        </button>
+
+        <div class="progress-wrap">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div id="progress-text" class="progress-text">0%</div>
+    </section>
+
+    <!-- ===================== LOG ===================== -->
+    <section class="log-wrap">
+        <div class="log-title">Estado</div>
+        <div id="log" class="log"></div>
+    </section>
+
+    <script src="../js/CSInterface.js"></script>
+    <script src="../js/app.js"></script>
+</body>
+</html>

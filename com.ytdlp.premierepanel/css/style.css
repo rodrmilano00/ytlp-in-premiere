@@ -1,0 +1,284 @@
+/* ============================================================
+   YT-DLP Importer — Tema oscuro estilo Adobe Premiere Pro
+   Paleta inspirada en Spectrum Dark (bg #1e1e1e / acento #2680EB)
+   ============================================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    font-family: "Adobe Clean", "Segoe UI", "Source Sans Pro", sans-serif;
+    font-size: 12px;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    user-select: none;
+    cursor: default;
+}
+
+/* ---------- Header ---------- */
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid #0d0d0d;
+}
+
+.app-header h1 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: #e8e8e8;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #6a6a6a;
+    transition: background-color 0.25s ease;
+}
+
+.dot-idle   { background-color: #6a6a6a; }
+.dot-busy   { background-color: #f5a623; }
+.dot-ok     { background-color: #35c759; }
+.dot-error  { background-color: #e5534b; }
+
+/* ---------- Configuración ---------- */
+
+.config {
+    margin: 10px 12px 0;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background-color: #252526;
+}
+
+.config summary {
+    padding: 8px 10px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #9a9a9a;
+    list-style: none;
+    outline: none;
+}
+
+.config summary::before {
+    content: "▸";
+    display: inline-block;
+    margin-right: 6px;
+    transition: transform 0.15s ease;
+}
+
+.config[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.config summary::-webkit-details-marker { display: none; }
+
+.config-body {
+    padding: 4px 10px 10px;
+}
+
+.field {
+    margin-bottom: 8px;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 11px;
+    color: #9a9a9a;
+}
+
+.hint {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #35c759;
+    min-height: 14px;
+}
+
+/* ---------- Inputs ---------- */
+
+input[type="text"] {
+    width: 100%;
+    padding: 7px 9px;
+    font-size: 12px;
+    font-family: "Consolas", "Segoe UI", monospace;
+    background-color: #2d2d30;
+    color: #e0e0e0;
+    border: 1px solid #3e3e42;
+    border-radius: 3px;
+    outline: none;
+    user-select: text;
+    cursor: text;
+    transition: border-color 0.15s ease;
+}
+
+input[type="text"]:focus {
+    border-color: #2680eb;
+}
+
+input[type="text"]::placeholder {
+    color: #6a6a6a;
+}
+
+/* ---------- Advertencia ---------- */
+
+.warning {
+    margin: 10px 12px 0;
+    padding: 8px 10px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #f5c76b;
+    background-color: rgba(245, 166, 35, 0.08);
+    border: 1px solid rgba(245, 166, 35, 0.35);
+    border-radius: 4px;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- Sección principal ---------- */
+
+.main {
+    padding: 12px;
+}
+
+.format-row {
+    display: flex;
+    gap: 16px;
+    margin: 10px 0;
+}
+
+.radio {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #d4d4d4;
+}
+
+.radio input {
+    accent-color: #2680eb;
+}
+
+/* ---------- Botones ---------- */
+
+.btn {
+    width: 100%;
+    padding: 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: #2680eb;
+    color: #fff;
+}
+
+.btn-primary:not(:disabled):hover  { background-color: #3b8df0; }
+.btn-primary:not(:disabled):active { background-color: #1e6fd4; }
+
+.btn-secondary {
+    background-color: #3e3e42;
+    color: #d4d4d4;
+}
+
+.btn-secondary:not(:disabled):hover { background-color: #4a4a4f; }
+
+/* ---------- Barra de progreso ---------- */
+
+.progress-wrap {
+    margin-top: 12px;
+    height: 6px;
+    background-color: #2d2d30;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    width: 0%;
+    height: 100%;
+    background-color: #2680eb;
+    border-radius: 3px;
+    transition: width 0.2s ease, background-color 0.25s ease;
+}
+
+.progress-bar.done  { background-color: #35c759; }
+.progress-bar.error { background-color: #e5534b; }
+
+.progress-text {
+    margin-top: 5px;
+    font-size: 11px;
+    text-align: right;
+    color: #9a9a9a;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Log ---------- */
+
+.log-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0 12px 12px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background-color: #191919;
+}
+
+.log-title {
+    padding: 6px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #6a6a6a;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 10px;
+    font-family: "Consolas", monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    color: #b8b8b8;
+    user-select: text;
+    cursor: text;
+    word-break: break-all;
+}
+
+.log .log-entry { margin-bottom: 2px; }
+.log .log-error   { color: #e5534b; }
+.log .log-warn    { color: #f5c76b; }
+.log .log-ok      { color: #35c759; }
+.log .log-info    { color: #d4d4d4; }
+.log .log-dim     { color: #7a7a7a; }
+
+.log::-webkit-scrollbar        { width: 8px; }
+.log::-webkit-scrollbar-thumb  { background-color: #3e3e42; border-radius: 4px; }
+.log::-webkit-scrollbar-track  { background-color: transparent; }
