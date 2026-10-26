@@ -51,11 +51,15 @@
         progressBar: document.getElementById("progress-bar"),
         progressText: document.getElementById("progress-text"),
         log: document.getElementById("log"),
+        logDetails: document.getElementById("log-details"),
+        logLast: document.getElementById("log-last"),
         statusDot: document.getElementById("status-dot")
     };
 
     var CONFIG_KEY = "ytdlp.panel.config";
     var downloading = false;
+    var activeProc = null;
+    var cancelled = false;
 
     // Defaults: usa los binarios del PATH y una carpeta de descargas propia.
     // La sección Configuración sirve solo como override.
@@ -75,6 +79,9 @@
         div.textContent = msg;
         el.log.appendChild(div);
         el.log.scrollTop = el.log.scrollHeight;
+        el.logLast.textContent = msg;
+        el.logLast.className = "log-last last-" + (kind || "info");
+        if (kind === "error") el.logDetails.open = true;  // errores siempre visibles
     }
 
     function setDot(state) {
@@ -175,7 +182,7 @@
         var problems = validateConfig(getConfig());
         var ready = problems.length === 0 && nodeAvailable;
 
-        el.btnDownload.disabled = !ready || downloading;
+        el.btnDownload.disabled = downloading ? false : !ready;
         el.configWarning.classList.toggle("hidden", ready);
 
         if (!nodeAvailable) {
@@ -303,27 +310,26 @@
         var proc, out = "";
         try {
             proc = spawn(cfg.ytdlp, [
-                "--js-runtimes", "node", "--no-playlist", "-s", "-J", url
+                "--js-runtimes", "node", "--no-playlist", "-s",
+                "--print", "%(title)s", "--print", "%(duration)s", url
             ], { windowsHide: true });
         } catch (e) { hideTrim("yt-dlp no disponible."); return; }
 
-        proc.stdout.on("data", function (d) {
-            out += d.toString();
-            if (out.length > 24e6) proc.kill();   // JSON gigante → abortar
-        });
+        proc.stdout.on("data", function (d) { out += d.toString(); });
         proc.on("error", function () {
             if (token === infoToken) hideTrim("yt-dlp no disponible.");
         });
         proc.on("close", function (code) {
             if (token !== infoToken) return;
-            var info = null;
-            try { info = JSON.parse(out); } catch (e) {}
-            if (code !== 0 || !info || !info.duration) {
+            // Última línea = duración; el resto = título (puede tener saltos)
+            var lines = out.split(/\r?\n/).filter(function (l) { return l.trim(); });
+            var dur = parseFloat(lines.pop() || "");
+            if (code !== 0 || !isFinite(dur) || dur <= 0) {
                 hideTrim("yt-dlp no pudo obtener info del video.");
                 return;
             }
-            media.duration = +info.duration || 0;
-            media.title = info.title || "Video";
+            media.duration = dur;
+            media.title = lines.join(" ") || "Video";
             trimSel.end = media.duration;
             el.trimTitle.textContent = media.title;
             el.trimDuration.textContent = fmtTime(media.duration);
@@ -677,6 +683,7 @@
         var args = [
             "--newline",                // progreso línea a línea
             "--no-playlist",
+            "-N", "4",                  // fragmentos concurrentes (DASH/HLS)
             "--restrict-filenames",     // nombres seguros para importar en Windows
             "--js-runtimes", "node",    // sin runtime JS faltan formatos de YouTube
             "-P", cfg.dest,             // carpeta de destino
@@ -788,7 +795,10 @@
         if (!refreshUiState()) return;
 
         downloading = true;
-        el.btnDownload.disabled = true;
+        cancelled = false;
+        el.btnDownload.disabled = false;
+        el.btnDownload.textContent = "Cancelar";
+        el.btnDownload.classList.add("btn-danger");
         setProgress(0);
         setDot("busy");
         log("Descargando: " + url, "info");
@@ -802,6 +812,7 @@
         var proc;
         try {
             proc = spawn(cfg.ytdlp, args, { windowsHide: true });
+            activeProc = proc;
         } catch (e) {
             finishError("No se pudo lanzar yt-dlp: " + e.message);
             return;
@@ -836,6 +847,10 @@
         proc.on("close", function (code) {
             var finalPath = ctx.printedPath || ctx.finalPath;
 
+            if (cancelled) {
+                finishError("Descarga cancelada por el usuario.");
+                return;
+            }
             if (code !== 0) {
                 finishError("yt-dlp terminó con código " + code + ". Revisa el log.");
                 return;
@@ -915,7 +930,7 @@
         var args = [
             "-y", "-i", src,
             "-map", "0:v:0?", "-map", "0:a:0?",
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
             "-c:a", "aac", "-b:a", "192k",
             "-movflags", "+faststart",
             tmp
@@ -927,6 +942,7 @@
         var proc;
         try {
             proc = spawn(ffmpegExe(cfg.ffmpeg), args, { windowsHide: true });
+            activeProc = proc;
         } catch (e) {
             log("No se pudo lanzar ffmpeg: " + e.message + ". Importando original.", "warn");
             done(src);
@@ -951,6 +967,11 @@
         });
 
         proc.on("close", function (code) {
+            if (cancelled) {
+                try { fs.unlinkSync(tmp); } catch (e) {}
+                finishError("Descarga cancelada por el usuario.");
+                return;
+            }
             if (code === 0) {
                 try {
                     fs.unlinkSync(src);
@@ -997,7 +1018,8 @@
 
         csInterface.evalScript(script, function (result) {
             downloading = false;
-            refreshUiState();
+            activeProc = null;
+            resetDownloadBtn();
 
             if (result === "OK") {
                 setDot("ok");
@@ -1014,9 +1036,16 @@
 
     function finishError(msg) {
         downloading = false;
+        activeProc = null;
         setProgress(parseFloat(el.progressText.textContent) || 0, "error");
         setDot("error");
         log(msg, "error");
+        resetDownloadBtn();
+    }
+
+    function resetDownloadBtn() {
+        el.btnDownload.textContent = "Descargar e Importar";
+        el.btnDownload.classList.remove("btn-danger");
         refreshUiState();
     }
 
@@ -1116,7 +1145,14 @@
     el.trimEnd.addEventListener("change", function () { commitTrimInput("end"); });
     window.addEventListener("resize", drawTrim);
 
-    el.btnDownload.addEventListener("click", startDownload);
+    el.btnDownload.addEventListener("click", function () {
+        if (downloading) {
+            cancelled = true;
+            if (activeProc) { try { activeProc.kill(); } catch (e) {} }
+            return;
+        }
+        startDownload();
+    });
 
     /* ---------------- Arranque ---------------- */
 

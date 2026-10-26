@@ -3,6 +3,10 @@
 Panel que descarga video (MP4) o audio (MP3) de YouTube con `yt-dlp` + `ffmpeg`
 locales e importa el archivo resultante al proyecto activo de Premiere.
 
+- Descarga con progreso en vivo y botón **Cancelar** (mata yt-dlp/ffmpeg)
+- Log plegable con preview del último mensaje; se auto-abre si hay un error
+- Verificación de codecs con `ffprobe` y transcodificación a H.264/AAC
+
 ## Estructura
 
 ```

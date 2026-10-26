@@ -359,6 +359,13 @@ select option {
 
 .btn-secondary:not(:disabled):hover { background-color: #4a4a4f; }
 
+.btn-danger {
+    background-color: #8c2f28;
+    color: #fff;
+}
+
+.btn-danger:not(:disabled):hover { background-color: #a53931; }
+
 /* ---------- Barra de progreso ---------- */
 
 .progress-wrap {
@@ -401,7 +408,12 @@ select option {
     background-color: #191919;
 }
 
+.log-wrap:not([open]) { flex: 0 0 auto; }
+
 .log-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 6px 10px;
     font-size: 10px;
     font-weight: 600;
@@ -409,7 +421,39 @@ select option {
     letter-spacing: 0.6px;
     color: #6a6a6a;
     border-bottom: 1px solid #2a2a2a;
+    list-style: none;
+    outline: none;
+    cursor: pointer;
 }
+
+.log-title::before {
+    content: "▸";
+    display: inline-block;
+    transition: transform 0.15s ease;
+}
+
+.log-wrap[open] .log-title::before { transform: rotate(90deg); }
+.log-title::-webkit-details-marker { display: none; }
+.log-wrap:not([open]) .log-title { border-bottom-color: transparent; }
+
+.log-last {
+    flex: 1;
+    text-align: right;
+    font-family: "Consolas", monospace;
+    font-size: 10px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #6a6a6a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-last.last-ok    { color: #35c759; }
+.log-last.last-warn  { color: #f5c76b; }
+.log-last.last-error { color: #e5534b; }
+.log-last.last-dim   { color: #7a7a7a; }
 
 .log {
     flex: 1;

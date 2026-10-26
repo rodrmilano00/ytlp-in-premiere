@@ -120,10 +120,13 @@
     </section>
 
     <!-- ===================== LOG ===================== -->
-    <section class="log-wrap">
-        <div class="log-title">Estado</div>
+    <details id="log-details" class="log-wrap">
+        <summary class="log-title">
+            <span>Estado</span>
+            <span id="log-last" class="log-last"></span>
+        </summary>
         <div id="log" class="log"></div>
-    </section>
+    </details>
 
     <script src="../js/CSInterface.js"></script>
     <script src="../js/app.js"></script>
