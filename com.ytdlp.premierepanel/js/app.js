@@ -8,13 +8,14 @@
 
     /* ---------------- Módulos Node ---------------- */
 
-    var fs, path, spawn;
+    var fs, path, spawn, os;
     var nodeAvailable = true;
 
     try {
         fs = require("fs");
         path = require("path");
         spawn = require("child_process").spawn;
+        os = require("os");
     } catch (e) {
         nodeAvailable = false;
     }
@@ -42,6 +43,16 @@
     var CONFIG_KEY = "ytdlp.panel.config";
     var downloading = false;
 
+    // Defaults: usa los binarios del PATH y una carpeta de descargas propia.
+    // La sección Configuración sirve solo como override.
+    var DEFAULTS = {
+        ytdlp: "yt-dlp",
+        ffmpeg: "ffmpeg",
+        dest: nodeAvailable
+            ? path.join(os.homedir(), "Videos", "yt-dlp")
+            : ""
+    };
+
     /* ---------------- Utilidades de UI ---------------- */
 
     function log(msg, kind) {
@@ -68,10 +79,14 @@
     function loadConfig() {
         try {
             var raw = localStorage.getItem(CONFIG_KEY);
-            var cfg = raw ? JSON.parse(raw) : {};
-            el.cfgYtdlp.value = cfg.ytdlp || "";
-            el.cfgFfmpeg.value = cfg.ffmpeg || "";
-            el.cfgDest.value = cfg.dest || "";
+            var saved = raw ? JSON.parse(raw) : {};
+            el.cfgYtdlp.value = saved.ytdlp || "";
+            el.cfgFfmpeg.value = saved.ffmpeg || "";
+            el.cfgDest.value = saved.dest || "";
+            // Los placeholders muestran el valor por defecto efectivo.
+            el.cfgYtdlp.placeholder = "vacío = " + DEFAULTS.ytdlp;
+            el.cfgFfmpeg.placeholder = "vacío = " + DEFAULTS.ffmpeg;
+            el.cfgDest.placeholder = "vacío = " + DEFAULTS.dest;
         } catch (e) {
             log("No se pudo leer la configuración guardada.", "warn");
         }
@@ -92,9 +107,9 @@
 
     function getConfig() {
         return {
-            ytdlp: el.cfgYtdlp.value.trim(),
-            ffmpeg: el.cfgFfmpeg.value.trim(),
-            dest: el.cfgDest.value.trim()
+            ytdlp: el.cfgYtdlp.value.trim() || DEFAULTS.ytdlp,
+            ffmpeg: el.cfgFfmpeg.value.trim() || DEFAULTS.ffmpeg,
+            dest: el.cfgDest.value.trim() || DEFAULTS.dest
         };
     }
 
@@ -105,11 +120,8 @@
     /** Valida rutas; devuelve lista de problemas (vacía = todo OK). */
     function validateConfig(cfg) {
         var problems = [];
-        if (!cfg.ytdlp) problems.push("yt-dlp");
-        if (!cfg.ffmpeg) problems.push("ffmpeg");
-        if (!cfg.dest) problems.push("carpeta de destino");
 
-        if (nodeAvailable && problems.length === 0) {
+        if (nodeAvailable) {
             if (isPathLike(cfg.ytdlp) && !fs.existsSync(cfg.ytdlp)) {
                 problems.push("ruta de yt-dlp no existe");
             }
@@ -125,6 +137,24 @@
             }
         }
         return problems;
+    }
+
+    /** Ejecuta `cmd args` y devuelve la primera línea de stdout (o null). */
+    function probeVersion(cmd, args, cb) {
+        if (!nodeAvailable || isPathLike(cmd)) { cb(null); return; }
+        var out = "";
+        var proc;
+        try {
+            proc = spawn(cmd, args, { windowsHide: true });
+        } catch (e) {
+            cb(null);
+            return;
+        }
+        proc.stdout.on("data", function (d) { out += d.toString(); });
+        proc.on("error", function () { cb(null); });
+        proc.on("close", function (code) {
+            cb(code === 0 ? out.split(/\r?\n/)[0].trim() : null);
+        });
     }
 
     function refreshUiState() {
@@ -153,12 +183,17 @@
             "--newline",                // progreso línea a línea
             "--no-playlist",
             "--restrict-filenames",     // nombres seguros para importar en Windows
-            "--ffmpeg-location", cfg.ffmpeg,
             "-P", cfg.dest,             // carpeta de destino
             "-o", "%(title)s.%(ext)s",
             "--print", "after_move:filepath",   // imprime la ruta final al terminar
             "--no-simulate"
         ];
+
+        // Solo pasa --ffmpeg-location si es una ruta; un nombre suelto
+        // ("ffmpeg") lo resuelve yt-dlp solo desde el PATH.
+        if (isPathLike(cfg.ffmpeg)) {
+            args.push("--ffmpeg-location", cfg.ffmpeg);
+        }
 
         if (format === "audio") {
             args.push("-x", "--audio-format", "mp3", "--audio-quality", "0");
@@ -361,11 +396,21 @@
 
     loadConfig();
 
+    var startupCfg = getConfig();
+    probeVersion(startupCfg.ytdlp, ["--version"], function (v) {
+        log(v ? "yt-dlp " + v + " listo."
+              : "yt-dlp no encontrado en el PATH. Configura la ruta arriba.",
+            v ? "ok" : "warn");
+    });
+    probeVersion(startupCfg.ffmpeg, ["-version"], function (v) {
+        if (v) log(v.split(" Copyright")[0] + " listo.", "ok");
+    });
+
     if (!refreshUiState()) {
         el.configSection.open = true;   // abrir config si falta algo
-        log("Bienvenido. Configura las rutas para comenzar.", "info");
+        log("Revisa la configuración: hay rutas que no existen.", "info");
     } else {
-        log("Configuración cargada. Listo para descargar.", "ok");
+        log("Listo: pega una URL y descarga.", "ok");
     }
     setDot("idle");
 })();
