@@ -183,6 +183,7 @@
             "--newline",                // progreso línea a línea
             "--no-playlist",
             "--restrict-filenames",     // nombres seguros para importar en Windows
+            "--js-runtimes", "node",    // sin runtime JS faltan formatos de YouTube
             "-P", cfg.dest,             // carpeta de destino
             "-o", "%(title)s.%(ext)s",
             "--print", "after_move:filepath",   // imprime la ruta final al terminar
@@ -198,8 +199,15 @@
         if (format === "audio") {
             args.push("-x", "--audio-format", "mp3", "--audio-quality", "0");
         } else {
+            // Preferir streams H.264+AAC (nativos de Premiere). Si el video
+            // solo existe en VP9/AV1, baja el mejor disponible y luego
+            // ensureCompatible() lo transcodifica con ffmpeg.
             args.push(
-                "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
+                "-f",
+                "bv*[vcodec^=avc1][ext=mp4]+ba[acodec^=mp4a]/" +
+                "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/" +
+                "b[vcodec^=avc1]/" +
+                "bv*+ba/b",
                 "--merge-output-format", "mp4"
             );
         }
@@ -328,9 +336,145 @@
                 return;
             }
 
-            setProgress(100, "done");
             log("Descarga completada: " + finalPath, "ok");
-            importIntoPremiere(finalPath);
+            ensureCompatible(finalPath, cfg, function (readyPath) {
+                setProgress(100, "done");
+                importIntoPremiere(readyPath);
+            });
+        });
+    }
+
+    /* ---------------- Compatibilidad de codecs (Premiere) ---------------- */
+
+    var OK_VIDEO_CODEC = { h264: 1, hevc: 1 };
+
+    function ffmpegExe(cfgVal) {
+        if (isPathLike(cfgVal)) {
+            try {
+                if (fs.existsSync(cfgVal) && fs.statSync(cfgVal).isDirectory()) {
+                    return path.join(cfgVal, "ffmpeg.exe");
+                }
+            } catch (e) {}
+            return cfgVal;
+        }
+        return "ffmpeg";
+    }
+
+    function ffprobeExe(cfgVal) {
+        if (isPathLike(cfgVal)) {
+            try {
+                if (fs.existsSync(cfgVal)) {
+                    var p = fs.statSync(cfgVal).isDirectory()
+                        ? cfgVal
+                        : path.dirname(cfgVal);
+                    return path.join(p, "ffprobe.exe");
+                }
+            } catch (e) {}
+        }
+        return "ffprobe";
+    }
+
+    function probeMedia(file, cfg, cb) {
+        var out = "";
+        var proc;
+        try {
+            proc = spawn(ffprobeExe(cfg.ffmpeg), [
+                "-v", "error",
+                "-show_entries", "stream=codec_type,codec_name:format=duration",
+                "-of", "json", file
+            ], { windowsHide: true });
+        } catch (e) { cb(null); return; }
+        proc.stdout.on("data", function (d) { out += d.toString(); });
+        proc.on("error", function () { cb(null); });
+        proc.on("close", function (code) {
+            if (code !== 0) { cb(null); return; }
+            try { cb(JSON.parse(out)); } catch (e) { cb(null); }
+        });
+    }
+
+    function isCompatible(streams) {
+        for (var i = 0; i < streams.length; i++) {
+            var s = streams[i];
+            if (s.codec_type === "video" && !OK_VIDEO_CODEC[s.codec_name]) return false;
+            if (s.codec_type === "audio" && !/^(aac|mp3|flac|alac|pcm_)/.test(s.codec_name)) return false;
+        }
+        return true;
+    }
+
+    function transcodeToH264(src, cfg, durationSec, done) {
+        var tmp = src.replace(/\.[^.\\]+$/, "") + ".pr-convert.mp4";
+        var args = [
+            "-y", "-i", src,
+            "-map", "0:v:0?", "-map", "0:a:0?",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            "-c:a", "aac", "-b:a", "192k",
+            "-movflags", "+faststart",
+            tmp
+        ];
+
+        log("Codec no compatible con Premiere. Convirtiendo a H.264/AAC...", "info");
+        setDot("busy");
+
+        var proc;
+        try {
+            proc = spawn(ffmpegExe(cfg.ffmpeg), args, { windowsHide: true });
+        } catch (e) {
+            log("No se pudo lanzar ffmpeg: " + e.message + ". Importando original.", "warn");
+            done(src);
+            return;
+        }
+
+        var leftover = "";
+        proc.stderr.on("data", function (d) {
+            leftover += d.toString();
+            var m;
+            while ((m = /time=(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(leftover))) {
+                var secs = (+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]);
+                if (durationSec > 0) setProgress((secs / durationSec) * 100);
+                leftover = leftover.slice(m.index + m[0].length);
+                if (leftover.length > 4096) leftover = leftover.slice(-1024);
+            }
+        });
+
+        proc.on("error", function (e) {
+            log("ffmpeg falló: " + e.message + ". Importando original.", "warn");
+            done(src);
+        });
+
+        proc.on("close", function (code) {
+            if (code === 0) {
+                try {
+                    fs.unlinkSync(src);
+                    fs.renameSync(tmp, src);
+                    log("Convertido a H.264/AAC correctamente.", "ok");
+                } catch (e) {
+                    log("Conversión hecha pero no se pudo reemplazar el archivo: " + e.message, "warn");
+                    try { fs.unlinkSync(tmp); } catch (e2) {}
+                }
+            } else {
+                try { fs.unlinkSync(tmp); } catch (e) {}
+                log("La conversión falló (código " + code + "). Importando original.", "warn");
+            }
+            done(src);
+        });
+    }
+
+    /** Garantiza que el archivo use codecs que Premiere puede importar. */
+    function ensureCompatible(filePath, cfg, done) {
+        if (!nodeAvailable) { done(filePath); return; }
+
+        probeMedia(filePath, cfg, function (info) {
+            if (!info || !info.streams) {
+                log("No se pudo verificar el codec (ffprobe). Importando igual.", "warn");
+                done(filePath);
+                return;
+            }
+            if (isCompatible(info.streams)) {
+                done(filePath);
+                return;
+            }
+            var dur = info.format ? parseFloat(info.format.duration) || 0 : 0;
+            transcodeToH264(filePath, cfg, dur, done);
         });
     }
 

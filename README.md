@@ -63,15 +63,30 @@ Abre el panel desde **Ventana → Extensiones → YT-DLP Importer**.
 
 ## Configuración del panel
 
-En la sección **Configuración** del panel:
+No requiere configuración si `yt-dlp` y `ffmpeg` están en el PATH: las
+descargas van a `%USERPROFILE%\Videos\yt-dlp` (se crea sola). La sección
+**Configuración** del panel es un override opcional:
 
-- **yt-dlp**: ruta completa a `yt-dlp.exe`, o simplemente `yt-dlp` si está en el PATH.
-- **ffmpeg**: ruta a `ffmpeg.exe` o a su carpeta contenedora.
-- **Carpeta de descargas**: dónde se guardarán los archivos (se crea si no existe).
+- **yt-dlp**: ruta completa a `yt-dlp.exe`, o déjalo vacío para usar el del PATH.
+- **ffmpeg**: ruta a `ffmpeg.exe` o a su carpeta contenedora, o vacío para el del PATH.
+- **Carpeta de descargas**: dónde se guardarán los archivos.
 
 Las rutas se guardan en `localStorage` y persisten entre sesiones.
-Mientras falte alguna, el botón de descarga aparece deshabilitado con una
-advertencia amarilla.
+
+## Compatibilidad de codecs
+
+Premiere solo importa ciertos codecs. El panel lo garantiza en dos pasos:
+
+1. **Selector de formatos**: yt-dlp prefiere streams `avc1` (H.264) + `mp4a`
+   (AAC). Si el video solo existe en VP9/AV1, descarga el mejor disponible.
+2. **Verificación post-descarga**: `ffprobe` inspecciona los codecs reales del
+   archivo. Si no son compatibles (VP9, AV1, Opus, Vorbis...), `ffmpeg` lo
+   transcodifica a **H.264 + AAC en MP4** conservando el nombre del archivo,
+   con progreso en la barra del panel.
+
+El audio descargado siempre es MP3 (compatible). También se activa
+`--js-runtimes node`, necesario en yt-dlp reciente o algunos formatos de
+YouTube no aparecen.
 
 ## Depuración (opcional)
 
