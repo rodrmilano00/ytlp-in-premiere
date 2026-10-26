@@ -42,9 +42,6 @@
         trimTitle: document.getElementById("trim-title"),
         trimDuration: document.getElementById("trim-duration"),
         trimCanvas: document.getElementById("trim-canvas"),
-        trimHover: document.getElementById("trim-hover"),
-        trimHoverImg: document.getElementById("trim-hover-img"),
-        trimHoverTime: document.getElementById("trim-hover-time"),
         trimLoading: document.getElementById("trim-loading"),
         chkTrim: document.getElementById("chk-trim"),
         trimStart: document.getElementById("trim-start"),
@@ -233,62 +230,18 @@
 
     /* ---------------- Trimmer ---------------- */
 
-    var media = { url: "", duration: 0, title: "", thumb: null, peaks: null,
-                  frames: [null, null, null, null] };
+    var media = { url: "", duration: 0, title: "", peaks: null };
     var trimSel = { start: 0, end: 0, enabled: false };
     var infoToken = 0;
     var infoTimer = null;
     var canvasW = 0;
 
-    /** Primer thumbnail que matchee alguno de los regex (en orden de preferencia). */
-    function pickThumb(list, res) {
-        for (var r = 0; r < res.length; r++) {
-            for (var i = 0; i < list.length; i++) {
-                if (res[r].test(list[i].url || "")) return list[i].url;
-            }
-        }
-        return null;
-    }
-
-    /** hq1/hq2/hq3 son frames reales al 25/50/75% del video: filmstrip gratis. */
-    function loadQuarterFrames(info) {
-        var thumbs = info.thumbnails || [];
-        var urls = [
-            pickThumb(thumbs, [/\/maxresdefault\./, /\/sddefault\./, /\/hqdefault\./, /\/default\./, /\/0\./]),
-            pickThumb(thumbs, [/\/hq1\./, /\/sd1\./, /\/mq1\./, /\/1\./]),
-            pickThumb(thumbs, [/\/hq2\./, /\/sd2\./, /\/mq2\./, /\/2\./]),
-            pickThumb(thumbs, [/\/hq3\./, /\/sd3\./, /\/mq3\./, /\/3\./])
-        ];
-        urls.forEach(function (u, i) {
-            if (!u) return;
-            var img = new Image();
-            img.onload = function () { media.frames[i] = img; drawTrim(); };
-            img.onerror = function () {};
-            img.src = u;
-        });
-    }
-
-    /** Burbuja de preview bajo el cursor: frame del cuarto + timestamp. */
-    function updateHover(px) {
-        if (!media.duration) { el.trimHover.classList.add("hidden"); return; }
-        var t = x2t(px);
-        el.trimHover.classList.remove("hidden");
-        var bw = el.trimHover.offsetWidth || 96;
-        el.trimHover.style.left =
-            Math.max(bw / 2, Math.min(canvasW - bw / 2, px)) + "px";
-        el.trimHoverTime.textContent = fmtTime(t);
-
-        var fr = media.frames[Math.min(3, Math.floor(4 * t / media.duration))];
-        var hc = el.trimHoverImg, cx = hc.getContext("2d");
-        if (fr) {
-            var sc = Math.max(hc.width / fr.width, hc.height / fr.height);
-            cx.drawImage(fr,
-                (hc.width - fr.width * sc) / 2, (hc.height - fr.height * sc) / 2,
-                fr.width * sc, fr.height * sc);
-        } else {
-            cx.fillStyle = "#101012";
-            cx.fillRect(0, 0, hc.width, hc.height);
-        }
+    function fadeTrimLoading() {
+        if (el.trimLoading.classList.contains("hidden")) return;
+        el.trimLoading.classList.add("fade");
+        setTimeout(function () {
+            el.trimLoading.classList.add("hidden");
+        }, 480);
     }
 
     function fmtTime(t) {
@@ -331,14 +284,14 @@
         if (!nodeAvailable) return;
         var token = ++infoToken;
 
-        media = { url: url, duration: 0, title: "", thumb: null, peaks: null,
-                  frames: [null, null, null, null] };
+        media = { url: url, duration: 0, title: "", peaks: null };
         trimSel.start = 0; trimSel.end = 0; trimSel.enabled = false;
         el.chkTrim.checked = false;
         refreshTrimEnabled();
 
         el.trimCard.classList.remove("hidden");
-        el.trimLoading.classList.remove("hidden");
+        el.trimLoading.classList.remove("hidden", "fade");
+        el.trimLoading.textContent = "Obteniendo info del video…";
         el.trimTitle.textContent = "Analizando…";
         el.trimDuration.textContent = "";
         drawTrim();
@@ -374,16 +327,10 @@
             trimSel.end = media.duration;
             el.trimTitle.textContent = media.title;
             el.trimDuration.textContent = fmtTime(media.duration);
-            el.trimLoading.classList.add("hidden");   // timeline ya usable
+            updateLoadingPct();
             syncTrimInputs();
             refreshTrimEnabled();
 
-            if (info.thumbnail) {
-                var img = new Image();
-                img.onload = function () { media.thumb = img; drawTrim(); };
-                img.src = info.thumbnail;
-            }
-            loadQuarterFrames(info);
             drainPeaks();   // por si el PCM ya llegó antes que la duración
             drawTrim();
         });
@@ -398,10 +345,41 @@
         var ps = peakState;
         if (!ps) return;
         if (ps.timer) clearTimeout(ps.timer);
+        if (ps.pctTimer) clearInterval(ps.pctTimer);
         if (ps.procs) {
             ps.procs.forEach(function (p) { try { p.kill(); } catch (e) {} });
         }
         peakState = null;
+    }
+
+    /**
+     * ETA en segundos para generar la onda según la duración del video:
+     * ~2.5 s de overhead (spawn + resolución de formatos) y el audio se
+     * baja/decodifica a ~12× su tiempo real en conexiones típicas.
+     */
+    function estimateEta(durationSec) {
+        return 2.5 + durationSec * 0.08;
+    }
+
+    /**
+     * Progreso mostrado al usuario: máximo entre lo real (PCM recibido) y
+     * lo estimado por la ETA — lineal al 90% durante la ETA y asíntota
+     * hacia 99% si tarda más. Nunca dice 100 hasta terminar de verdad.
+     */
+    function updateLoadingPct() {
+        var ps = peakState;
+        if (!ps || ps.token !== infoToken ||
+            el.trimLoading.classList.contains("hidden") ||
+            el.trimLoading.classList.contains("fade")) return;
+        if (!media.duration) return;   // sigue "Obteniendo info…"
+
+        var real = ps.expected ? ps.samplesDone / ps.expected : 0;
+        var r = (Date.now() - ps.startedAt) / 1000 / estimateEta(media.duration);
+        var est = r < 1 ? 0.9 * r : 0.9 + 0.09 * (1 - Math.exp(-(r - 1)));
+
+        var pct = Math.round(Math.min(ps.done ? 1 : 0.99, Math.max(real, est)) * 100);
+        el.trimLoading.textContent = "Generando forma de onda… " + pct + "%";
+        if (pct >= 100) fadeTrimLoading();
     }
 
     function startPeaks(url, cfg, token) {
@@ -414,8 +392,10 @@
             token: token,
             B: 0, min: null, max: null, expected: 0,
             pending: [], samplesDone: 0, received: 0,
-            procs: null, timer: null, done: false, lastDraw: 0
+            procs: null, timer: null, pctTimer: null,
+            done: false, lastDraw: 0, startedAt: Date.now()
         };
+        ps.pctTimer = setInterval(updateLoadingPct, 300);
 
         function launch() {
             var ytd, ff;
@@ -454,6 +434,7 @@
                 if (code !== 0 && ps.received === 0) { failed = true; retry(); return; }
                 ps.done = true;
                 drainPeaks();
+                updateLoadingPct();
             });
         }
 
@@ -469,6 +450,7 @@
                 ps.done = true;
                 if (token === infoToken && ps.received === 0) {
                     log("No se pudo generar la forma de onda.", "dim");
+                    fadeTrimLoading();
                 }
             }
         }
@@ -477,7 +459,8 @@
             var p = peakState;
             killPeaks();
             if (p && token === infoToken && !p.done) {
-                log("La forma de onda tardó demasiado; recorta sobre la miniatura.", "dim");
+                log("La forma de onda tardó demasiado.", "dim");
+                fadeTrimLoading();
             }
         }, 60000);
 
@@ -542,33 +525,6 @@
 
         c.fillStyle = "#141414";
         c.fillRect(0, 0, w, h);
-
-        // Filmstrip: 4 frames reales (0/25/50/75%); fallback a la miniatura.
-        var hasFrames = media.frames.some(function (f) { return !!f; });
-        if (hasFrames) {
-            var qw = w / 4;
-            for (var q = 0; q < 4; q++) {
-                var fr = media.frames[q];
-                if (!fr) continue;
-                var fsc = Math.max(qw / fr.width, h / fr.height);
-                c.globalAlpha = 0.36;
-                c.drawImage(fr,
-                    q * qw + (qw - fr.width * fsc) / 2,
-                    (h - fr.height * fsc) / 2,
-                    fr.width * fsc, fr.height * fsc);
-                c.globalAlpha = 1;
-            }
-            c.fillStyle = "rgba(0,0,0,0.5)";
-            for (q = 1; q < 4; q++) c.fillRect(Math.floor(q * qw), 0, 1, h);
-        } else if (media.thumb) {
-            var img = media.thumb,
-                sc = Math.max(w / img.width, h / img.height);
-            c.globalAlpha = 0.32;
-            c.drawImage(img,
-                (w - img.width * sc) / 2, (h - img.height * sc) / 2,
-                img.width * sc, img.height * sc);
-            c.globalAlpha = 1;
-        }
 
         var mid = h / 2, amp = h / 2 - 6;
         if (media.peaks && media.peaks.filled > 0) {
@@ -1133,7 +1089,6 @@
     });
 
     el.trimCanvas.addEventListener("mousemove", function (e) {
-        updateHover(e.offsetX);
         if (dragMode || !media.duration || !trimSel.enabled) {
             el.trimCanvas.style.cursor = "crosshair";
             return;
@@ -1146,22 +1101,13 @@
             (x > x0 && x < x1) ? "grab" : "crosshair";
     });
 
-    el.trimCanvas.addEventListener("mouseleave", function () {
-        el.trimHover.classList.add("hidden");
-    });
-
     window.addEventListener("mousemove", function (e) {
         if (!dragMode) return;
         var r = el.trimCanvas.getBoundingClientRect();
-        var px = e.clientX - r.left;
-        applyDrag(px);
-        updateHover(Math.max(0, Math.min(canvasW, px)));
+        applyDrag(e.clientX - r.left);
     });
 
-    window.addEventListener("mouseup", function () {
-        if (dragMode) el.trimHover.classList.add("hidden");
-        dragMode = null;
-    });
+    window.addEventListener("mouseup", function () { dragMode = null; });
 
     el.trimCanvas.addEventListener("dblclick", resetTrim);
     el.btnTrimReset.addEventListener("click", resetTrim);

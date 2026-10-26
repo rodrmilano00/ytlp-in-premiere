@@ -88,14 +88,11 @@ entre sesiones.
 
 Al pegar una URL el panel la analiza automáticamente y muestra una tarjeta
 con el título, la duración y un **timeline con la forma de onda real del
-audio**. De fondo dibuja un **filmstrip de 4 frames reales** del video
-(`hq1/hq2/hq3` = frames al 25/50/75%, imágenes ligeras ya servidas por
-YouTube). La onda se dibuja **progresivamente de izquierda a derecha**
-mientras llega el PCM (yt-dlp `worstaudio` por stdout → `ffmpeg` a 1 kHz
-mono, en paralelo al análisis y sin tocar el disco).
-
-**Preview al pasar el mouse** (estilo YouTube): una burbuja sigue al cursor
-con el frame del cuarto correspondiente + timestamp exacto.
+audio**. Mientras se genera, un overlay muestra el **porcentaje real de
+carga** (bytes PCM recibidos / esperados) y desaparece con un fade al
+terminar. La onda se dibuja **progresivamente de izquierda a derecha**
+(yt-dlp `worstaudio` por stdout → `ffmpeg` a 1 kHz mono, en paralelo al
+análisis y sin tocar el disco).
 
 Interacción del timeline:
 
