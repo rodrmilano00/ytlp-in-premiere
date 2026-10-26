@@ -50,6 +50,28 @@
         <input id="url" type="text" spellcheck="false"
                placeholder="https://www.youtube.com/watch?v=...">
 
+        <!-- ===================== TRIMMER ===================== -->
+        <section id="trim-card" class="trim-card hidden">
+            <div class="trim-head">
+                <div id="trim-title" class="trim-title">Analizando…</div>
+                <div id="trim-duration" class="trim-duration"></div>
+            </div>
+            <div class="trim-canvas-wrap">
+                <canvas id="trim-canvas"></canvas>
+                <div id="trim-loading" class="trim-loading">Obteniendo info del video…</div>
+            </div>
+            <div class="trim-controls">
+                <label class="radio">
+                    <input type="checkbox" id="chk-trim">
+                    <span>Recortar</span>
+                </label>
+                <input id="trim-start" type="text" class="time-input" spellcheck="false" disabled>
+                <span class="trim-sep">→</span>
+                <input id="trim-end" type="text" class="time-input" spellcheck="false" disabled>
+                <button id="btn-trim-reset" class="btn-mini" disabled>Todo</button>
+            </div>
+        </section>
+
         <div class="format-row" role="radiogroup">
             <label class="radio">
                 <input type="radio" name="format" value="video" checked>
@@ -59,6 +81,32 @@
                 <input type="radio" name="format" value="audio">
                 <span>Solo audio (MP3)</span>
             </label>
+        </div>
+
+        <div class="quality-row">
+            <div class="field" id="field-vq">
+                <label for="sel-vq">Calidad de video</label>
+                <select id="sel-vq">
+                    <option value="best" selected>Mejor disponible</option>
+                    <option value="2160">4K · 2160p</option>
+                    <option value="1440">QHD · 1440p</option>
+                    <option value="1080">Full HD · 1080p</option>
+                    <option value="720">HD · 720p</option>
+                    <option value="480">SD · 480p</option>
+                    <option value="360">360p</option>
+                </select>
+            </div>
+            <div class="field hidden" id="field-aq">
+                <label for="sel-aq">Bitrate de audio</label>
+                <select id="sel-aq">
+                    <option value="0" selected>Mejor (VBR)</option>
+                    <option value="320K">320 kbps</option>
+                    <option value="256K">256 kbps</option>
+                    <option value="192K">192 kbps</option>
+                    <option value="128K">128 kbps</option>
+                    <option value="96K">96 kbps</option>
+                </select>
+            </div>
         </div>
 
         <button id="btn-download" class="btn btn-primary" disabled>
@@ -72,10 +120,13 @@
     </section>
 
     <!-- ===================== LOG ===================== -->
-    <section class="log-wrap">
-        <div class="log-title">Estado</div>
+    <details id="log-details" class="log-wrap">
+        <summary class="log-title">
+            <span>Estado</span>
+            <span id="log-last" class="log-last"></span>
+        </summary>
         <div id="log" class="log"></div>
-    </section>
+    </details>
 
     <script src="../js/CSInterface.js"></script>
     <script src="../js/app.js"></script>
