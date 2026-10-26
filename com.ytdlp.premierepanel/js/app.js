@@ -38,6 +38,18 @@
         fieldVq: document.getElementById("field-vq"),
         fieldAq: document.getElementById("field-aq"),
         formatRadios: document.querySelectorAll('input[name="format"]'),
+        trimCard: document.getElementById("trim-card"),
+        trimTitle: document.getElementById("trim-title"),
+        trimDuration: document.getElementById("trim-duration"),
+        trimCanvas: document.getElementById("trim-canvas"),
+        trimHover: document.getElementById("trim-hover"),
+        trimHoverImg: document.getElementById("trim-hover-img"),
+        trimHoverTime: document.getElementById("trim-hover-time"),
+        trimLoading: document.getElementById("trim-loading"),
+        chkTrim: document.getElementById("chk-trim"),
+        trimStart: document.getElementById("trim-start"),
+        trimEnd: document.getElementById("trim-end"),
+        btnTrimReset: document.getElementById("btn-trim-reset"),
         btnDownload: document.getElementById("btn-download"),
         progressBar: document.getElementById("progress-bar"),
         progressText: document.getElementById("progress-text"),
@@ -219,6 +231,474 @@
         } catch (e) {}
     }
 
+    /* ---------------- Trimmer ---------------- */
+
+    var media = { url: "", duration: 0, title: "", thumb: null, peaks: null,
+                  frames: [null, null, null, null] };
+    var trimSel = { start: 0, end: 0, enabled: false };
+    var infoToken = 0;
+    var infoTimer = null;
+    var canvasW = 0;
+
+    /** Primer thumbnail que matchee alguno de los regex (en orden de preferencia). */
+    function pickThumb(list, res) {
+        for (var r = 0; r < res.length; r++) {
+            for (var i = 0; i < list.length; i++) {
+                if (res[r].test(list[i].url || "")) return list[i].url;
+            }
+        }
+        return null;
+    }
+
+    /** hq1/hq2/hq3 son frames reales al 25/50/75% del video: filmstrip gratis. */
+    function loadQuarterFrames(info) {
+        var thumbs = info.thumbnails || [];
+        var urls = [
+            pickThumb(thumbs, [/\/maxresdefault\./, /\/sddefault\./, /\/hqdefault\./, /\/default\./, /\/0\./]),
+            pickThumb(thumbs, [/\/hq1\./, /\/sd1\./, /\/mq1\./, /\/1\./]),
+            pickThumb(thumbs, [/\/hq2\./, /\/sd2\./, /\/mq2\./, /\/2\./]),
+            pickThumb(thumbs, [/\/hq3\./, /\/sd3\./, /\/mq3\./, /\/3\./])
+        ];
+        urls.forEach(function (u, i) {
+            if (!u) return;
+            var img = new Image();
+            img.onload = function () { media.frames[i] = img; drawTrim(); };
+            img.onerror = function () {};
+            img.src = u;
+        });
+    }
+
+    /** Burbuja de preview bajo el cursor: frame del cuarto + timestamp. */
+    function updateHover(px) {
+        if (!media.duration) { el.trimHover.classList.add("hidden"); return; }
+        var t = x2t(px);
+        el.trimHover.classList.remove("hidden");
+        var bw = el.trimHover.offsetWidth || 96;
+        el.trimHover.style.left =
+            Math.max(bw / 2, Math.min(canvasW - bw / 2, px)) + "px";
+        el.trimHoverTime.textContent = fmtTime(t);
+
+        var fr = media.frames[Math.min(3, Math.floor(4 * t / media.duration))];
+        var hc = el.trimHoverImg, cx = hc.getContext("2d");
+        if (fr) {
+            var sc = Math.max(hc.width / fr.width, hc.height / fr.height);
+            cx.drawImage(fr,
+                (hc.width - fr.width * sc) / 2, (hc.height - fr.height * sc) / 2,
+                fr.width * sc, fr.height * sc);
+        } else {
+            cx.fillStyle = "#101012";
+            cx.fillRect(0, 0, hc.width, hc.height);
+        }
+    }
+
+    function fmtTime(t) {
+        t = Math.max(0, Math.round(t * 10) / 10);
+        var h = Math.floor(t / 3600),
+            m = Math.floor((t % 3600) / 60),
+            s = t % 60;
+        var ss = s.toFixed(s % 1 ? 1 : 0);
+        if (s < 10) ss = "0" + ss;
+        return (h ? h + ":" + (m < 10 ? "0" : "") + m : m) + ":" + ss;
+    }
+
+    function parseTime(str) {
+        var parts = String(str).trim().split(":");
+        if (parts.length > 3) return null;
+        var sec = 0;
+        for (var i = 0; i < parts.length; i++) {
+            var v = parseFloat(parts[i]);
+            if (isNaN(v) || v < 0) return null;
+            sec = sec * 60 + v;
+        }
+        return sec;
+    }
+
+    function trimActive(url) {
+        return trimSel.enabled && media.url === url && media.duration > 0 &&
+               (trimSel.start > 0.05 || trimSel.end < media.duration - 0.05);
+    }
+
+    function hideTrim(msg) {
+        el.trimCard.classList.add("hidden");
+        media.url = "";
+        killPeaks();
+        if (msg) log(msg, "warn");
+    }
+
+    /* ----- Análisis de la URL (debounced) ----- */
+
+    function fetchMediaInfo(url, cfg) {
+        if (!nodeAvailable) return;
+        var token = ++infoToken;
+
+        media = { url: url, duration: 0, title: "", thumb: null, peaks: null,
+                  frames: [null, null, null, null] };
+        trimSel.start = 0; trimSel.end = 0; trimSel.enabled = false;
+        el.chkTrim.checked = false;
+        refreshTrimEnabled();
+
+        el.trimCard.classList.remove("hidden");
+        el.trimLoading.classList.remove("hidden");
+        el.trimTitle.textContent = "Analizando…";
+        el.trimDuration.textContent = "";
+        drawTrim();
+
+        // La descarga del audio del waveform arranca en paralelo al -J;
+        // drainPeaks() espera a que llegue la duración para colocar picos.
+        startPeaks(url, cfg, token);
+
+        var proc, out = "";
+        try {
+            proc = spawn(cfg.ytdlp, [
+                "--js-runtimes", "node", "--no-playlist", "-s", "-J", url
+            ], { windowsHide: true });
+        } catch (e) { hideTrim("yt-dlp no disponible."); return; }
+
+        proc.stdout.on("data", function (d) {
+            out += d.toString();
+            if (out.length > 24e6) proc.kill();   // JSON gigante → abortar
+        });
+        proc.on("error", function () {
+            if (token === infoToken) hideTrim("yt-dlp no disponible.");
+        });
+        proc.on("close", function (code) {
+            if (token !== infoToken) return;
+            var info = null;
+            try { info = JSON.parse(out); } catch (e) {}
+            if (code !== 0 || !info || !info.duration) {
+                hideTrim("yt-dlp no pudo obtener info del video.");
+                return;
+            }
+            media.duration = +info.duration || 0;
+            media.title = info.title || "Video";
+            trimSel.end = media.duration;
+            el.trimTitle.textContent = media.title;
+            el.trimDuration.textContent = fmtTime(media.duration);
+            el.trimLoading.classList.add("hidden");   // timeline ya usable
+            syncTrimInputs();
+            refreshTrimEnabled();
+
+            if (info.thumbnail) {
+                var img = new Image();
+                img.onload = function () { media.thumb = img; drawTrim(); };
+                img.src = info.thumbnail;
+            }
+            loadQuarterFrames(info);
+            drainPeaks();   // por si el PCM ya llegó antes que la duración
+            drawTrim();
+        });
+    }
+
+    /* ----- Waveform real: yt-dlp → ffmpeg → PCM → picos progresivos ----- */
+
+    var peakState = null;
+    var WAVE_RATE = 1000;   // Hz mono — picos visuales, mitad de datos
+
+    function killPeaks() {
+        var ps = peakState;
+        if (!ps) return;
+        if (ps.timer) clearTimeout(ps.timer);
+        if (ps.procs) {
+            ps.procs.forEach(function (p) { try { p.kill(); } catch (e) {} });
+        }
+        peakState = null;
+    }
+
+    function startPeaks(url, cfg, token) {
+        killPeaks();
+        // Selectores de fallback: si worstaudio no existe, bestaudio; si no, default.
+        var selectors = ["worstaudio/worst", "ba/w", null];
+        var attempt = 0;
+
+        var ps = peakState = {
+            token: token,
+            B: 0, min: null, max: null, expected: 0,
+            pending: [], samplesDone: 0, received: 0,
+            procs: null, timer: null, done: false, lastDraw: 0
+        };
+
+        function launch() {
+            var ytd, ff;
+            var args = ["--js-runtimes", "node", "--no-playlist", "-o", "-"];
+            if (selectors[attempt]) args.push("-f", selectors[attempt]);
+            args.push(url);
+            try {
+                ytd = spawn(cfg.ytdlp, args, { windowsHide: true });
+                ff = spawn(ffmpegExe(cfg.ffmpeg), [
+                    "-v", "error", "-i", "pipe:0",
+                    "-vn", "-ac", "1", "-ar", String(WAVE_RATE),
+                    "-f", "s16le", "pipe:1"
+                ], { windowsHide: true });
+            } catch (e) { retry(); return; }
+
+            ps.procs = [ytd, ff];
+            ytd.stdout.pipe(ff.stdin);
+            ff.stdin.on("error", function () {});
+            ytd.on("error", function () { try { ff.stdin.end(); } catch (e) {} });
+
+            var failed = false;
+            ff.stdout.on("data", function (c) {
+                ps.pending.push(c);
+                ps.received += c.length;
+                var now = Date.now();
+                if (now - ps.lastDraw > 150) {
+                    ps.lastDraw = now;
+                    drainPeaks();
+                }
+            });
+            ff.on("error", function () {
+                if (!failed) { failed = true; retry(); }
+            });
+            ff.on("close", function (code) {
+                if (ps.done || failed) return;
+                if (code !== 0 && ps.received === 0) { failed = true; retry(); return; }
+                ps.done = true;
+                drainPeaks();
+            });
+        }
+
+        function retry() {
+            if (ps.done || token !== infoToken) return;
+            attempt++;
+            if (attempt < selectors.length) {
+                ps.pending = [];
+                ps.received = 0;
+                ps.samplesDone = 0;
+                launch();
+            } else {
+                ps.done = true;
+                if (token === infoToken && ps.received === 0) {
+                    log("No se pudo generar la forma de onda.", "dim");
+                }
+            }
+        }
+
+        ps.timer = setTimeout(function () {
+            var p = peakState;
+            killPeaks();
+            if (p && token === infoToken && !p.done) {
+                log("La forma de onda tardó demasiado; recorta sobre la miniatura.", "dim");
+            }
+        }, 60000);
+
+        launch();
+    }
+
+    /** Consume el PCM pendiente y actualiza media.peaks progresivamente. */
+    function drainPeaks() {
+        var ps = peakState;
+        if (!ps || ps.token !== infoToken || !media.duration || !ps.pending.length) return;
+        if (!ps.B) {
+            ps.B = Math.max(240, Math.min(1400, Math.floor(media.duration * 8)));
+            ps.min = new Float32Array(ps.B).fill(Infinity);
+            ps.max = new Float32Array(ps.B).fill(-Infinity);
+            ps.expected = Math.max(1, media.duration * WAVE_RATE);
+        }
+        var buf = ps.pending.length === 1 ? ps.pending[0] : Buffer.concat(ps.pending);
+        ps.pending = [];
+        var n = Math.floor(buf.length / 2),
+            B = ps.B, min = ps.min, max = ps.max, base = ps.samplesDone;
+        for (var j = 0; j < n; j++) {
+            var b = Math.floor(((base + j) * B) / ps.expected);
+            if (b >= B) break;
+            var s = buf.readInt16LE(j * 2) / 32768;
+            if (s < min[b]) min[b] = s;
+            if (s > max[b]) max[b] = s;
+        }
+        ps.samplesDone += n;
+        media.peaks = {
+            min: min, max: max, n: B,
+            filled: Math.min(1, ps.samplesDone / ps.expected)
+        };
+        drawTrim();
+    }
+
+    /* ----- Render del timeline ----- */
+
+    function drawHandle(c, x, h) {
+        c.fillStyle = "#e8e8e8";
+        c.fillRect(x - 1, 0, 2, h);
+        c.fillStyle = "#2680eb";
+        c.fillRect(x - 4, 0, 8, 10);
+    }
+
+    function drawTrim() {
+        var cv = el.trimCanvas;
+        if (!cv || el.trimCard.classList.contains("hidden")) return;
+        var w = cv.clientWidth, h = cv.clientHeight;
+        if (!w || !h) return;
+        var dpr = window.devicePixelRatio || 1;
+        if (cv.width !== Math.round(w * dpr)) {
+            cv.width = Math.round(w * dpr);
+            cv.height = Math.round(h * dpr);
+        }
+        var c = cv.getContext("2d");
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        canvasW = w;
+
+        var dur = media.duration || 0;
+        var x0 = dur ? (trimSel.start / dur) * w : 0,
+            x1 = dur ? (trimSel.end / dur) * w : w;
+
+        c.fillStyle = "#141414";
+        c.fillRect(0, 0, w, h);
+
+        // Filmstrip: 4 frames reales (0/25/50/75%); fallback a la miniatura.
+        var hasFrames = media.frames.some(function (f) { return !!f; });
+        if (hasFrames) {
+            var qw = w / 4;
+            for (var q = 0; q < 4; q++) {
+                var fr = media.frames[q];
+                if (!fr) continue;
+                var fsc = Math.max(qw / fr.width, h / fr.height);
+                c.globalAlpha = 0.36;
+                c.drawImage(fr,
+                    q * qw + (qw - fr.width * fsc) / 2,
+                    (h - fr.height * fsc) / 2,
+                    fr.width * fsc, fr.height * fsc);
+                c.globalAlpha = 1;
+            }
+            c.fillStyle = "rgba(0,0,0,0.5)";
+            for (q = 1; q < 4; q++) c.fillRect(Math.floor(q * qw), 0, 1, h);
+        } else if (media.thumb) {
+            var img = media.thumb,
+                sc = Math.max(w / img.width, h / img.height);
+            c.globalAlpha = 0.32;
+            c.drawImage(img,
+                (w - img.width * sc) / 2, (h - img.height * sc) / 2,
+                img.width * sc, img.height * sc);
+            c.globalAlpha = 1;
+        }
+
+        var mid = h / 2, amp = h / 2 - 6;
+        if (media.peaks && media.peaks.filled > 0) {
+            var pk = media.peaks, norm = 0.02;
+            for (var i = 0; i < pk.n; i++) {
+                var a = Math.max(
+                    pk.max[i] === -Infinity ? 0 : pk.max[i],
+                    pk.min[i] === Infinity ? 0 : -pk.min[i]);
+                if (a > norm) norm = a;
+            }
+            var fillEnd = Math.floor(pk.filled * w);
+            for (var x = 0; x < fillEnd; x++) {
+                var bi = Math.min(pk.n - 1, Math.floor((x / w) * pk.n));
+                var lo = pk.min[bi], hi = pk.max[bi];
+                if (lo === Infinity) { lo = 0; hi = 0; }
+                var yT = mid - (hi / norm) * amp,
+                    yB = mid - (lo / norm) * amp;
+                if (yB - yT < 1) yB = yT + 1;
+                c.fillStyle = (x >= x0 && x <= x1) ? "#5b8fd4" : "#3a4a5e";
+                c.fillRect(x, yT, 1, yB - yT);
+            }
+            // borde de carga + línea base en la zona pendiente
+            c.fillStyle = "rgba(91,143,212,0.55)";
+            c.fillRect(fillEnd, 2, 1, h - 4);
+            if (fillEnd < w) {
+                c.fillStyle = "rgba(58,74,94,0.4)";
+                c.fillRect(fillEnd + 1, mid, w - fillEnd - 1, 1);
+            }
+        } else {
+            c.fillStyle = "#333";
+            c.fillRect(0, mid, w, 1);
+        }
+
+        // ticks de tiempo: orientación útil desde el primer segundo
+        if (dur) {
+            var step = dur / 7;
+            var steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600];
+            for (i = 0; i < steps.length; i++) {
+                if (steps[i] >= step) { step = steps[i]; break; }
+            }
+            c.fillStyle = "rgba(255,255,255,0.18)";
+            for (var t = step; t < dur; t += step) {
+                c.fillRect(Math.floor((t / dur) * w), 2, 1, 4);
+            }
+        }
+
+        // oscurecer fuera de la selección + borde
+        c.fillStyle = "rgba(10,10,12,0.6)";
+        c.fillRect(0, 0, x0, h);
+        c.fillRect(x1, 0, w - x1, h);
+        c.fillStyle = "#2680eb";
+        c.fillRect(x0, 0, x1 - x0, 2);
+        c.fillRect(x0, h - 2, x1 - x0, 2);
+
+        drawHandle(c, x0, h);
+        drawHandle(c, x1, h);
+
+        // etiquetas in/out dentro del timeline
+        c.font = "9px Consolas, monospace";
+        c.fillStyle = "#e8e8e8";
+        c.fillText(fmtTime(trimSel.start), Math.min(x0 + 6, w - 34), h - 5);
+        var eLbl = fmtTime(trimSel.end);
+        c.fillText(eLbl, Math.max(x1 - 6 - c.measureText(eLbl).width, 2), h - 5);
+    }
+
+    /* ----- Interacción (handles + región) ----- */
+
+    var dragMode = null, grabOff = 0;
+
+    function x2t(px) {
+        return media.duration
+            ? Math.max(0, Math.min(media.duration, (px / canvasW) * media.duration))
+            : 0;
+    }
+
+    function applyDrag(px) {
+        var t = x2t(px), span = trimSel.end - trimSel.start;
+        if (dragMode === "l") {
+            trimSel.start = Math.min(t, trimSel.end - 0.1);
+        } else if (dragMode === "r") {
+            trimSel.end = Math.max(t, trimSel.start + 0.1);
+        } else if (dragMode === "move") {
+            var ns = Math.max(0, Math.min(media.duration - span, t - grabOff));
+            trimSel.start = ns;
+            trimSel.end = ns + span;
+        }
+        trimSel.start = Math.max(0, Math.min(media.duration, trimSel.start));
+        trimSel.end = Math.max(0, Math.min(media.duration, trimSel.end));
+        syncTrimInputs();
+        drawTrim();
+    }
+
+    /* ----- Controles ----- */
+
+    function syncTrimInputs() {
+        el.trimStart.value = fmtTime(trimSel.start);
+        el.trimEnd.value = fmtTime(trimSel.end);
+    }
+
+    function commitTrimInput(which) {
+        var inp = which === "start" ? el.trimStart : el.trimEnd;
+        var t = parseTime(inp.value);
+        if (t === null) { syncTrimInputs(); return; }
+        if (which === "start") {
+            trimSel.start = Math.max(0, Math.min(t, trimSel.end - 0.1));
+        } else {
+            trimSel.end = Math.min(media.duration, Math.max(t, trimSel.start + 0.1));
+        }
+        syncTrimInputs();
+        drawTrim();
+    }
+
+    function refreshTrimEnabled() {
+        trimSel.enabled = el.chkTrim.checked;
+        var on = trimSel.enabled && media.duration > 0;
+        el.trimStart.disabled = !on;
+        el.trimEnd.disabled = !on;
+        el.btnTrimReset.disabled = !on;
+        el.trimCard.classList.toggle("trim-off", !trimSel.enabled);
+        drawTrim();
+    }
+
+    function resetTrim() {
+        if (!media.duration) return;
+        trimSel.start = 0;
+        trimSel.end = media.duration;
+        syncTrimInputs();
+        drawTrim();
+    }
+
     /* ---------------- Construcción de argumentos ---------------- */
 
     /**
@@ -269,6 +749,17 @@
                 "-f", videoFormatSelector(maxH),
                 "--merge-output-format", "mp4"
             );
+        }
+
+        // Recorte: --download-sections corta durante la descarga vía ffmpeg.
+        // --force-keyframes-at-cuts re-encoda en los bordes para que el corte
+        // sea exacto (solo video; en audio no aplica).
+        if (trimActive(url)) {
+            args.push(
+                "--download-sections",
+                "*" + trimSel.start.toFixed(2) + "-" + trimSel.end.toFixed(2)
+            );
+            if (format === "video") args.push("--force-keyframes-at-cuts");
         }
 
         args.push(url);
@@ -345,6 +836,9 @@
         setProgress(0);
         setDot("busy");
         log("Descargando: " + url, "info");
+        if (trimActive(url)) {
+            log("Recorte: " + fmtTime(trimSel.start) + " → " + fmtTime(trimSel.end), "info");
+        }
 
         var args = buildArgs(cfg, url);
         var ctx = { finalPath: null, printedPath: null, destDir: cfg.dest };
@@ -599,6 +1093,82 @@
     [el.selVq, el.selAq].forEach(function (sel) {
         sel.addEventListener("change", savePrefs);
     });
+
+    /* ----- Trimmer: eventos ----- */
+
+    el.url.addEventListener("input", function () {
+        clearTimeout(infoTimer);
+        var u = el.url.value.trim();
+        if (u === media.url) return;
+        if (!/^https?:\/\/\S+$/i.test(u)) {
+            infoToken++;                     // invalida fetch en curso
+            killPeaks();
+            el.trimCard.classList.add("hidden");
+            media.url = "";
+            return;
+        }
+        infoTimer = setTimeout(function () {
+            fetchMediaInfo(u, getConfig());
+        }, 800);
+    });
+
+    el.trimCanvas.addEventListener("mousedown", function (e) {
+        if (!media.duration || !trimSel.enabled) return;
+        var x = e.offsetX;
+        var x0 = (trimSel.start / media.duration) * canvasW,
+            x1 = (trimSel.end / media.duration) * canvasW;
+        if (Math.abs(x - x0) <= 7) dragMode = "l";
+        else if (Math.abs(x - x1) <= 7) dragMode = "r";
+        else if (x > x0 && x < x1) { dragMode = "move"; grabOff = x2t(x) - trimSel.start; }
+        else if (Math.abs(x - x0) <= Math.abs(x - x1)) {
+            trimSel.start = Math.min(x2t(x), trimSel.end - 0.1);
+            dragMode = "l";
+        } else {
+            trimSel.end = Math.max(x2t(x), trimSel.start + 0.1);
+            dragMode = "r";
+        }
+        syncTrimInputs();
+        drawTrim();
+        e.preventDefault();
+    });
+
+    el.trimCanvas.addEventListener("mousemove", function (e) {
+        updateHover(e.offsetX);
+        if (dragMode || !media.duration || !trimSel.enabled) {
+            el.trimCanvas.style.cursor = "crosshair";
+            return;
+        }
+        var x = e.offsetX;
+        var x0 = (trimSel.start / media.duration) * canvasW,
+            x1 = (trimSel.end / media.duration) * canvasW;
+        el.trimCanvas.style.cursor =
+            (Math.abs(x - x0) <= 7 || Math.abs(x - x1) <= 7) ? "ew-resize" :
+            (x > x0 && x < x1) ? "grab" : "crosshair";
+    });
+
+    el.trimCanvas.addEventListener("mouseleave", function () {
+        el.trimHover.classList.add("hidden");
+    });
+
+    window.addEventListener("mousemove", function (e) {
+        if (!dragMode) return;
+        var r = el.trimCanvas.getBoundingClientRect();
+        var px = e.clientX - r.left;
+        applyDrag(px);
+        updateHover(Math.max(0, Math.min(canvasW, px)));
+    });
+
+    window.addEventListener("mouseup", function () {
+        if (dragMode) el.trimHover.classList.add("hidden");
+        dragMode = null;
+    });
+
+    el.trimCanvas.addEventListener("dblclick", resetTrim);
+    el.btnTrimReset.addEventListener("click", resetTrim);
+    el.chkTrim.addEventListener("change", refreshTrimEnabled);
+    el.trimStart.addEventListener("change", function () { commitTrimInput("start"); });
+    el.trimEnd.addEventListener("change", function () { commitTrimInput("end"); });
+    window.addEventListener("resize", drawTrim);
 
     el.btnDownload.addEventListener("click", startDownload);
 

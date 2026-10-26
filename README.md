@@ -84,6 +84,31 @@ Las rutas se guardan en `localStorage` y persisten entre sesiones.
 El formato y la calidad elegidos se guardan en `localStorage` y persisten
 entre sesiones.
 
+## Recorte (trimmer)
+
+Al pegar una URL el panel la analiza automáticamente y muestra una tarjeta
+con el título, la duración y un **timeline con la forma de onda real del
+audio**. De fondo dibuja un **filmstrip de 4 frames reales** del video
+(`hq1/hq2/hq3` = frames al 25/50/75%, imágenes ligeras ya servidas por
+YouTube). La onda se dibuja **progresivamente de izquierda a derecha**
+mientras llega el PCM (yt-dlp `worstaudio` por stdout → `ffmpeg` a 1 kHz
+mono, en paralelo al análisis y sin tocar el disco).
+
+**Preview al pasar el mouse** (estilo YouTube): una burbuja sigue al cursor
+con el frame del cuarto correspondiente + timestamp exacto.
+
+Interacción del timeline:
+
+- Arrastra los **handles** para ajustar inicio/fin
+- Arrastra la **región** seleccionada para moverla completa
+- Clic fuera de la selección mueve el extremo más cercano
+- Doble clic (o botón **Todo**) restaura el rango completo
+- Los inputs de tiempo aceptan `ss`, `mm:ss` u `hh:mm:ss.d`
+
+Activa la casilla **Recortar** y el rango se aplica en la descarga con
+`--download-sections` + `--force-keyframes-at-cuts` (corte exacto,
+re-encode solo en los bordes). Funciona tanto para video como para MP3.
+
 ## Compatibilidad de codecs
 
 Premiere solo importa ciertos codecs. El panel lo garantiza en dos pasos:

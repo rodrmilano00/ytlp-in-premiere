@@ -50,6 +50,32 @@
         <input id="url" type="text" spellcheck="false"
                placeholder="https://www.youtube.com/watch?v=...">
 
+        <!-- ===================== TRIMMER ===================== -->
+        <section id="trim-card" class="trim-card hidden">
+            <div class="trim-head">
+                <div id="trim-title" class="trim-title">Analizando…</div>
+                <div id="trim-duration" class="trim-duration"></div>
+            </div>
+            <div class="trim-canvas-wrap">
+                <canvas id="trim-canvas"></canvas>
+                <div id="trim-hover" class="trim-hover hidden">
+                    <canvas id="trim-hover-img" width="84" height="47"></canvas>
+                    <div id="trim-hover-time" class="trim-hover-time">0:00</div>
+                </div>
+                <div id="trim-loading" class="trim-loading">Obteniendo info del video…</div>
+            </div>
+            <div class="trim-controls">
+                <label class="radio">
+                    <input type="checkbox" id="chk-trim">
+                    <span>Recortar</span>
+                </label>
+                <input id="trim-start" type="text" class="time-input" spellcheck="false" disabled>
+                <span class="trim-sep">→</span>
+                <input id="trim-end" type="text" class="time-input" spellcheck="false" disabled>
+                <button id="btn-trim-reset" class="btn-mini" disabled>Todo</button>
+            </div>
+        </section>
+
         <div class="format-row" role="radiogroup">
             <label class="radio">
                 <input type="radio" name="format" value="video" checked>
