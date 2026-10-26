@@ -45,10 +45,12 @@ Sin esto Premiere no carga extensiones sin firmar. En CMD (como usuario normal):
 reg add "HKCU\Software\Adobe\CSXS.9"  /v PlayerDebugMode /t REG_SZ /d 1
 reg add "HKCU\Software\Adobe\CSXS.10" /v PlayerDebugMode /t REG_SZ /d 1
 reg add "HKCU\Software\Adobe\CSXS.11" /v PlayerDebugMode /t REG_SZ /d 1
+reg add "HKCU\Software\Adobe\CSXS.12" /v PlayerDebugMode /t REG_SZ /d 1
 ```
 
-Se añaden las tres claves porque la versión de CSXS depende de tu versión de
-Premiere (CSXS.9 ≈ CC2019–2021, CSXS.10 ≈ 2022, CSXS.11 ≈ 2023 en adelante).
+Se añaden las cuatro claves porque la versión de CSXS depende de tu versión de
+Premiere (CSXS.9 ≈ CC2019–2021, CSXS.10 ≈ 2022, CSXS.11 ≈ 2023–2024,
+CSXS.12 ≈ 2025 en adelante).
 
 En macOS el equivalente es:
 ```bash
