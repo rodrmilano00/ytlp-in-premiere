@@ -9,41 +9,38 @@
 
     <header class="app-header">
         <h1>YT-DLP Importer</h1>
-        <span id="status-dot" class="dot dot-idle" title="Estado"></span>
+        <span id="status-dot" class="dot dot-idle" title="Status" data-i18n-title="ui.state"></span>
     </header>
 
     <!-- ===================== CONFIGURACIÓN ===================== -->
     <details id="config-section" class="config">
-        <summary>Configuración</summary>
+        <summary data-i18n="ui.config">Settings</summary>
         <div class="config-body">
 
             <div class="field">
-                <label for="cfg-ytdlp">Ejecutable yt-dlp</label>
+                <label for="cfg-ytdlp" data-i18n="ui.cfgYtdlp">yt-dlp executable</label>
                 <input id="cfg-ytdlp" type="text" spellcheck="false"
-                       placeholder="C:\Tools\yt-dlp.exe  (o simplemente: yt-dlp)">
+                       placeholder="C:\Tools\yt-dlp.exe">
             </div>
 
             <div class="field">
-                <label for="cfg-ffmpeg">Ejecutable ffmpeg</label>
+                <label for="cfg-ffmpeg" data-i18n="ui.cfgFfmpeg">ffmpeg executable</label>
                 <input id="cfg-ffmpeg" type="text" spellcheck="false"
-                       placeholder="C:\Tools\ffmpeg\bin\ffmpeg.exe  (o su carpeta)">
+                       placeholder="C:\Tools\ffmpeg\bin\ffmpeg.exe">
             </div>
 
             <div class="field">
-                <label for="cfg-dest">Carpeta de descargas</label>
+                <label for="cfg-dest" data-i18n="ui.cfgDest">Downloads folder</label>
                 <input id="cfg-dest" type="text" spellcheck="false"
-                       placeholder="C:\Users\tuUsuario\Videos\Descargas">
+                       placeholder="C:\Users\you\Videos">
             </div>
 
-            <button id="btn-save-config" class="btn btn-secondary">Guardar configuración</button>
+            <button id="btn-save-config" class="btn btn-secondary" data-i18n="ui.cfgSave">Save settings</button>
             <p id="config-feedback" class="hint"></p>
         </div>
     </details>
 
-    <div id="config-warning" class="warning hidden">
-        Faltan rutas por configurar. Completa la sección
-        <strong>Configuración</strong> para habilitar la descarga.
-    </div>
+    <div id="config-warning" class="warning hidden"></div>
 
     <!-- ===================== DESCARGA ===================== -->
     <section class="main">
@@ -63,31 +60,31 @@
             <div class="trim-controls">
                 <label class="radio">
                     <input type="checkbox" id="chk-trim">
-                    <span>Recortar</span>
+                    <span data-i18n="ui.trim">Trim</span>
                 </label>
                 <input id="trim-start" type="text" class="time-input" spellcheck="false" disabled>
                 <span class="trim-sep">→</span>
                 <input id="trim-end" type="text" class="time-input" spellcheck="false" disabled>
-                <button id="btn-trim-reset" class="btn-mini" disabled>Todo</button>
+                <button id="btn-trim-reset" class="btn-mini" data-i18n="ui.trimAll" disabled>All</button>
             </div>
         </section>
 
         <div class="format-row" role="radiogroup">
             <label class="radio">
                 <input type="radio" name="format" value="video" checked>
-                <span>Video (MP4)</span>
+                <span data-i18n="ui.fmtVideo">Video (MP4)</span>
             </label>
             <label class="radio">
                 <input type="radio" name="format" value="audio">
-                <span>Solo audio (MP3)</span>
+                <span data-i18n="ui.fmtAudio">Audio only (MP3)</span>
             </label>
         </div>
 
         <div class="quality-row">
             <div class="field" id="field-vq">
-                <label for="sel-vq">Calidad de video</label>
+                <label for="sel-vq" data-i18n="ui.vqLabel">Video quality</label>
                 <select id="sel-vq">
-                    <option value="best" selected>Mejor disponible</option>
+                    <option value="best" selected data-i18n="ui.vqBest">Best available</option>
                     <option value="2160">4K · 2160p</option>
                     <option value="1440">QHD · 1440p</option>
                     <option value="1080">Full HD · 1080p</option>
@@ -97,9 +94,9 @@
                 </select>
             </div>
             <div class="field hidden" id="field-aq">
-                <label for="sel-aq">Bitrate de audio</label>
+                <label for="sel-aq" data-i18n="ui.aqLabel">Audio bitrate</label>
                 <select id="sel-aq">
-                    <option value="0" selected>Mejor (VBR)</option>
+                    <option value="0" selected data-i18n="ui.aqBest">Best (VBR)</option>
                     <option value="320K">320 kbps</option>
                     <option value="256K">256 kbps</option>
                     <option value="192K">192 kbps</option>
@@ -109,8 +106,8 @@
             </div>
         </div>
 
-        <button id="btn-download" class="btn btn-primary" disabled>
-            Descargar e Importar
+        <button id="btn-download" class="btn btn-primary" data-i18n="ui.btnDownload" disabled>
+            Download &amp; Import
         </button>
 
         <div class="progress-wrap">
@@ -122,7 +119,7 @@
     <!-- ===================== LOG ===================== -->
     <details id="log-details" class="log-wrap">
         <summary class="log-title">
-            <span>Estado</span>
+            <span data-i18n="ui.status">Log</span>
             <span id="log-last" class="log-last"></span>
         </summary>
         <div id="log" class="log"></div>

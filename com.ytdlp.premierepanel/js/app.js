@@ -22,6 +22,174 @@
 
     var csInterface = new CSInterface();
 
+    /* ---------------- i18n (sincronizado con el idioma de Premiere) ---------------- */
+
+    var STR = {
+        en: {
+            "ui.config": "Settings",
+            "ui.cfgYtdlp": "yt-dlp executable",
+            "ui.cfgFfmpeg": "ffmpeg executable",
+            "ui.cfgDest": "Downloads folder",
+            "ui.cfgSave": "Save settings",
+            "ui.fmtVideo": "Video (MP4)",
+            "ui.fmtAudio": "Audio only (MP3)",
+            "ui.vqLabel": "Video quality",
+            "ui.vqBest": "Best available",
+            "ui.aqLabel": "Audio bitrate",
+            "ui.aqBest": "Best (VBR)",
+            "ui.trim": "Trim",
+            "ui.trimAll": "All",
+            "ui.status": "Log",
+            "ui.state": "Status",
+            "ui.btnDownload": "Download & Import",
+            "ui.btnCancel": "Cancel",
+            "ui.analyzing": "Analyzing…",
+            "ui.fetchInfo": "Fetching video info…",
+            "ui.genWave": "Generating waveform… ",
+            "ui.emptyPh": "empty = ",
+
+            "prob.ytdlp": "yt-dlp",
+            "prob.ffmpeg": "ffmpeg",
+            "prob.dest": "downloads folder",
+            "prob.ytdlpPath": "yt-dlp path does not exist",
+            "prob.ffmpegPath": "ffmpeg path does not exist",
+            "prob.destCreate": "could not create downloads folder",
+
+            "warn.node": "Node.js is not available. Check --enable-nodejs in the manifest.",
+            "warn.missing": "Missing configuration: ",
+
+            "log.cfgRead": "Could not read saved settings.",
+            "log.cfgSaved": "Settings saved.",
+            "log.cfgWrite": "Could not save settings: {0}",
+            "log.noUrl": "Enter a YouTube URL.",
+            "log.downloading": "Downloading: {0}",
+            "log.trim": "Trim: {0} → {1}",
+            "log.ytdlpReady": "yt-dlp {0} ready.",
+            "log.noYtdlp": "yt-dlp not found in PATH. Set its path in Settings.",
+            "log.ffmpegReady": "{0} ready.",
+            "log.cfgCheck": "Check settings: some paths do not exist.",
+            "log.ready": "Ready: paste a URL and download.",
+            "log.noNode": "Node.js unavailable in this panel. Check the manifest and CEP version.",
+            "log.already": "Already downloaded: {0}",
+            "log.merging": "Merging audio and video...",
+            "log.procAudio": "Processing audio...",
+            "log.ytdlpErr": "Could not launch yt-dlp: {0}",
+            "log.cancelled": "Download cancelled by user.",
+            "log.exitCode": "yt-dlp exited with code {0}. Check the log.",
+            "log.noPath": "Download finished but the file path was not detected.",
+            "log.dlDone": "Download complete: {0}",
+            "log.importing": "Importing into Premiere...",
+            "log.importOk": "File imported to the project.",
+            "log.importErr": "Error running the script in Premiere.",
+            "log.converting": "Codec not supported by Premiere. Converting to H.264/AAC...",
+            "log.ffLaunch": "Could not launch ffmpeg: {0}. Importing original.",
+            "log.ffFail": "ffmpeg failed: {0}. Importing original.",
+            "log.convOk": "Converted to H.264/AAC.",
+            "log.convReplace": "Converted but could not replace the file: {0}",
+            "log.convFail": "Conversion failed (code {0}). Importing original.",
+            "log.probeFail": "Could not check codec (ffprobe). Importing anyway.",
+            "log.ytdlpNA": "yt-dlp unavailable.",
+            "log.noInfo": "yt-dlp could not fetch video info.",
+            "log.noWave": "Could not generate the waveform.",
+            "log.waveSlow": "Waveform took too long."
+        },
+        es: {
+            "ui.config": "Configuración",
+            "ui.cfgYtdlp": "Ejecutable yt-dlp",
+            "ui.cfgFfmpeg": "Ejecutable ffmpeg",
+            "ui.cfgDest": "Carpeta de descargas",
+            "ui.cfgSave": "Guardar configuración",
+            "ui.fmtVideo": "Video (MP4)",
+            "ui.fmtAudio": "Solo audio (MP3)",
+            "ui.vqLabel": "Calidad de video",
+            "ui.vqBest": "Mejor disponible",
+            "ui.aqLabel": "Bitrate de audio",
+            "ui.aqBest": "Mejor (VBR)",
+            "ui.trim": "Recortar",
+            "ui.trimAll": "Todo",
+            "ui.status": "Estado",
+            "ui.state": "Estado",
+            "ui.btnDownload": "Descargar e Importar",
+            "ui.btnCancel": "Cancelar",
+            "ui.analyzing": "Analizando…",
+            "ui.fetchInfo": "Obteniendo info del video…",
+            "ui.genWave": "Generando forma de onda… ",
+            "ui.emptyPh": "vacío = ",
+
+            "prob.ytdlp": "yt-dlp",
+            "prob.ffmpeg": "ffmpeg",
+            "prob.dest": "carpeta de destino",
+            "prob.ytdlpPath": "la ruta de yt-dlp no existe",
+            "prob.ffmpegPath": "la ruta de ffmpeg no existe",
+            "prob.destCreate": "no se pudo crear la carpeta de destino",
+
+            "warn.node": "Node.js no está disponible. Revisa --enable-nodejs en el manifest.",
+            "warn.missing": "Falta configurar: ",
+
+            "log.cfgRead": "No se pudo leer la configuración guardada.",
+            "log.cfgSaved": "Configuración guardada.",
+            "log.cfgWrite": "No se pudo guardar la configuración: {0}",
+            "log.noUrl": "Introduce una URL de YouTube.",
+            "log.downloading": "Descargando: {0}",
+            "log.trim": "Recorte: {0} → {1}",
+            "log.ytdlpReady": "yt-dlp {0} listo.",
+            "log.noYtdlp": "yt-dlp no encontrado en el PATH. Configura la ruta arriba.",
+            "log.ffmpegReady": "{0} listo.",
+            "log.cfgCheck": "Revisa la configuración: hay rutas que no existen.",
+            "log.ready": "Listo: pega una URL y descarga.",
+            "log.noNode": "Node.js no disponible en este panel. Verifica el manifest y la versión de CEP.",
+            "log.already": "El archivo ya estaba descargado: {0}",
+            "log.merging": "Combinando audio y video...",
+            "log.procAudio": "Procesando audio...",
+            "log.ytdlpErr": "No se pudo lanzar yt-dlp: {0}",
+            "log.cancelled": "Descarga cancelada por el usuario.",
+            "log.exitCode": "yt-dlp terminó con código {0}. Revisa el log.",
+            "log.noPath": "Descarga completada pero no se detectó la ruta del archivo.",
+            "log.dlDone": "Descarga completada: {0}",
+            "log.importing": "Importando a Premiere...",
+            "log.importOk": "Archivo importado al proyecto correctamente.",
+            "log.importErr": "Error al ejecutar el script en Premiere.",
+            "log.converting": "Codec no compatible con Premiere. Convirtiendo a H.264/AAC...",
+            "log.ffLaunch": "No se pudo lanzar ffmpeg: {0}. Importando original.",
+            "log.ffFail": "ffmpeg falló: {0}. Importando original.",
+            "log.convOk": "Convertido a H.264/AAC correctamente.",
+            "log.convReplace": "Conversión hecha pero no se pudo reemplazar el archivo: {0}",
+            "log.convFail": "La conversión falló (código {0}). Importando original.",
+            "log.probeFail": "No se pudo verificar el codec (ffprobe). Importando igual.",
+            "log.ytdlpNA": "yt-dlp no disponible.",
+            "log.noInfo": "yt-dlp no pudo obtener info del video.",
+            "log.noWave": "No se pudo generar la forma de onda.",
+            "log.waveSlow": "La forma de onda tardó demasiado."
+        }
+    };
+
+    var LANG = "en";
+    try {
+        var env = csInterface.getHostEnvironment();
+        var loc = (env && (env.appUILocale || env.appLocale)) || "";
+        if (/^es/i.test(loc)) LANG = "es";
+    } catch (e) {}
+
+    function t(k) {
+        var s = (STR[LANG] && STR[LANG][k]) || STR.en[k] || k;
+        for (var i = 1; i < arguments.length; i++) {
+            s = s.replace("{" + (i - 1) + "}", arguments[i]);
+        }
+        return s;
+    }
+
+    function applyI18n() {
+        document.documentElement.lang = LANG;
+        var nodes = document.querySelectorAll("[data-i18n]");
+        for (var i = 0; i < nodes.length; i++) {
+            nodes[i].textContent = t(nodes[i].getAttribute("data-i18n"));
+        }
+        var titled = document.querySelectorAll("[data-i18n-title]");
+        for (var j = 0; j < titled.length; j++) {
+            titled[j].title = t(titled[j].getAttribute("data-i18n-title"));
+        }
+    }
+
     /* ---------------- Referencias DOM ---------------- */
 
     var el = {
@@ -105,11 +273,11 @@
             el.cfgFfmpeg.value = saved.ffmpeg || "";
             el.cfgDest.value = saved.dest || "";
             // Los placeholders muestran el valor por defecto efectivo.
-            el.cfgYtdlp.placeholder = "vacío = " + DEFAULTS.ytdlp;
-            el.cfgFfmpeg.placeholder = "vacío = " + DEFAULTS.ffmpeg;
-            el.cfgDest.placeholder = "vacío = " + DEFAULTS.dest;
+            el.cfgYtdlp.placeholder = t("ui.emptyPh") + DEFAULTS.ytdlp;
+            el.cfgFfmpeg.placeholder = t("ui.emptyPh") + DEFAULTS.ffmpeg;
+            el.cfgDest.placeholder = t("ui.emptyPh") + DEFAULTS.dest;
         } catch (e) {
-            log("No se pudo leer la configuración guardada.", "warn");
+            log(t("log.cfgRead"), "warn");
         }
     }
 
@@ -117,12 +285,12 @@
         var cfg = getConfig();
         try {
             localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
-            el.configFeedback.textContent = "Configuración guardada.";
+            el.configFeedback.textContent = t("log.cfgSaved");
             setTimeout(function () {
                 el.configFeedback.textContent = "";
             }, 2500);
         } catch (e) {
-            log("No se pudo guardar la configuración: " + e.message, "error");
+            log(t("log.cfgWrite", e.message), "error");
         }
     }
 
@@ -144,16 +312,16 @@
 
         if (nodeAvailable) {
             if (isPathLike(cfg.ytdlp) && !fs.existsSync(cfg.ytdlp)) {
-                problems.push("ruta de yt-dlp no existe");
+                problems.push(t("prob.ytdlpPath"));
             }
             if (isPathLike(cfg.ffmpeg) && !fs.existsSync(cfg.ffmpeg)) {
-                problems.push("ruta de ffmpeg no existe");
+                problems.push(t("prob.ffmpegPath"));
             }
             if (!fs.existsSync(cfg.dest)) {
                 try {
                     fs.mkdirSync(cfg.dest, { recursive: true });
                 } catch (e) {
-                    problems.push("no se pudo crear la carpeta de destino");
+                    problems.push(t("prob.destCreate"));
                 }
             }
         }
@@ -186,11 +354,10 @@
         el.configWarning.classList.toggle("hidden", ready);
 
         if (!nodeAvailable) {
-            el.configWarning.textContent =
-                "Node.js no está disponible. Revisa --enable-nodejs en el manifest.";
+            el.configWarning.textContent = t("warn.node");
         } else if (!ready) {
             el.configWarning.textContent =
-                "Falta configurar: " + problems.join(", ") + ".";
+                t("warn.missing") + problems.join(", ") + ".";
         }
         return ready;
     }
@@ -298,8 +465,8 @@
 
         el.trimCard.classList.remove("hidden");
         el.trimLoading.classList.remove("hidden", "fade");
-        el.trimLoading.textContent = "Obteniendo info del video…";
-        el.trimTitle.textContent = "Analizando…";
+        el.trimLoading.textContent = t("ui.fetchInfo");
+        el.trimTitle.textContent = t("ui.analyzing");
         el.trimDuration.textContent = "";
         drawTrim();
 
@@ -313,11 +480,11 @@
                 "--js-runtimes", "node", "--no-playlist", "-s",
                 "--print", "%(title)s", "--print", "%(duration)s", url
             ], { windowsHide: true });
-        } catch (e) { hideTrim("yt-dlp no disponible."); return; }
+        } catch (e) { hideTrim(t("log.ytdlpNA")); return; }
 
         proc.stdout.on("data", function (d) { out += d.toString(); });
         proc.on("error", function () {
-            if (token === infoToken) hideTrim("yt-dlp no disponible.");
+            if (token === infoToken) hideTrim(t("log.ytdlpNA"));
         });
         proc.on("close", function (code) {
             if (token !== infoToken) return;
@@ -325,7 +492,7 @@
             var lines = out.split(/\r?\n/).filter(function (l) { return l.trim(); });
             var dur = parseFloat(lines.pop() || "");
             if (code !== 0 || !isFinite(dur) || dur <= 0) {
-                hideTrim("yt-dlp no pudo obtener info del video.");
+                hideTrim(t("log.noInfo"));
                 return;
             }
             media.duration = dur;
@@ -384,7 +551,7 @@
         var est = r < 1 ? 0.9 * r : 0.9 + 0.09 * (1 - Math.exp(-(r - 1)));
 
         var pct = Math.round(Math.min(ps.done ? 1 : 0.99, Math.max(real, est)) * 100);
-        el.trimLoading.textContent = "Generando forma de onda… " + pct + "%";
+        el.trimLoading.textContent = t("ui.genWave") + pct + "%";
         if (pct >= 100) fadeTrimLoading();
     }
 
@@ -455,7 +622,7 @@
             } else {
                 ps.done = true;
                 if (token === infoToken && ps.received === 0) {
-                    log("No se pudo generar la forma de onda.", "dim");
+                    log(t("log.noWave"), "dim");
                     fadeTrimLoading();
                 }
             }
@@ -465,7 +632,7 @@
             var p = peakState;
             killPeaks();
             if (p && token === infoToken && !p.done) {
-                log("La forma de onda tardó demasiado.", "dim");
+                log(t("log.waveSlow"), "dim");
                 fadeTrimLoading();
             }
         }, 60000);
@@ -761,7 +928,7 @@
         if ((m = RE_ALREADY.exec(line))) {
             ctx.finalPath = m[1];
             setProgress(100);
-            log("El archivo ya estaba descargado: " + m[1], "dim");
+            log(t("log.already", m[1]), "dim");
             return;
         }
         for (var i = 0; i < RE_DESTINATIONS.length; i++) {
@@ -771,9 +938,9 @@
             }
         }
         if (line.indexOf("[Merger]") === 0) {
-            log("Combinando audio y video...", "dim");
+            log(t("log.merging"), "dim");
         } else if (line.indexOf("[ExtractAudio]") === 0) {
-            log("Procesando audio...", "dim");
+            log(t("log.procAudio"), "dim");
         }
 
         var p = looksLikePath(line, ctx.destDir);
@@ -789,7 +956,7 @@
         var url = el.url.value.trim();
 
         if (!url) {
-            log("Introduce una URL de YouTube.", "warn");
+            log(t("log.noUrl"), "warn");
             return;
         }
         if (!refreshUiState()) return;
@@ -797,13 +964,13 @@
         downloading = true;
         cancelled = false;
         el.btnDownload.disabled = false;
-        el.btnDownload.textContent = "Cancelar";
+        el.btnDownload.textContent = t("ui.btnCancel");
         el.btnDownload.classList.add("btn-danger");
         setProgress(0);
         setDot("busy");
-        log("Descargando: " + url, "info");
+        log(t("log.downloading", url), "info");
         if (trimActive(url)) {
-            log("Recorte: " + fmtTime(trimSel.start) + " → " + fmtTime(trimSel.end), "info");
+            log(t("log.trim", fmtTime(trimSel.start), fmtTime(trimSel.end)), "info");
         }
 
         var args = buildArgs(cfg, url);
@@ -814,7 +981,7 @@
             proc = spawn(cfg.ytdlp, args, { windowsHide: true });
             activeProc = proc;
         } catch (e) {
-            finishError("No se pudo lanzar yt-dlp: " + e.message);
+            finishError(t("log.ytdlpErr", e.message));
             return;
         }
 
@@ -841,26 +1008,26 @@
         });
 
         proc.on("error", function (e) {
-            finishError("Error al ejecutar yt-dlp: " + e.message);
+            finishError(t("log.ytdlpErr", e.message));
         });
 
         proc.on("close", function (code) {
             var finalPath = ctx.printedPath || ctx.finalPath;
 
             if (cancelled) {
-                finishError("Descarga cancelada por el usuario.");
+                finishError(t("log.cancelled"));
                 return;
             }
             if (code !== 0) {
-                finishError("yt-dlp terminó con código " + code + ". Revisa el log.");
+                finishError(t("log.exitCode", code));
                 return;
             }
             if (!finalPath) {
-                finishError("Descarga completada pero no se detectó la ruta del archivo.");
+                finishError(t("log.noPath"));
                 return;
             }
 
-            log("Descarga completada: " + finalPath, "ok");
+            log(t("log.dlDone", finalPath), "ok");
             ensureCompatible(finalPath, cfg, function (readyPath) {
                 setProgress(100, "done");
                 importIntoPremiere(readyPath);
@@ -936,7 +1103,7 @@
             tmp
         ];
 
-        log("Codec no compatible con Premiere. Convirtiendo a H.264/AAC...", "info");
+        log(t("log.converting"), "info");
         setDot("busy");
 
         var proc;
@@ -944,7 +1111,7 @@
             proc = spawn(ffmpegExe(cfg.ffmpeg), args, { windowsHide: true });
             activeProc = proc;
         } catch (e) {
-            log("No se pudo lanzar ffmpeg: " + e.message + ". Importando original.", "warn");
+            log(t("log.ffLaunch", e.message), "warn");
             done(src);
             return;
         }
@@ -962,28 +1129,28 @@
         });
 
         proc.on("error", function (e) {
-            log("ffmpeg falló: " + e.message + ". Importando original.", "warn");
+            log(t("log.ffFail", e.message), "warn");
             done(src);
         });
 
         proc.on("close", function (code) {
             if (cancelled) {
                 try { fs.unlinkSync(tmp); } catch (e) {}
-                finishError("Descarga cancelada por el usuario.");
+                finishError(t("log.cancelled"));
                 return;
             }
             if (code === 0) {
                 try {
                     fs.unlinkSync(src);
                     fs.renameSync(tmp, src);
-                    log("Convertido a H.264/AAC correctamente.", "ok");
+                    log(t("log.convOk"), "ok");
                 } catch (e) {
-                    log("Conversión hecha pero no se pudo reemplazar el archivo: " + e.message, "warn");
+                    log(t("log.convReplace", e.message), "warn");
                     try { fs.unlinkSync(tmp); } catch (e2) {}
                 }
             } else {
                 try { fs.unlinkSync(tmp); } catch (e) {}
-                log("La conversión falló (código " + code + "). Importando original.", "warn");
+                log(t("log.convFail", code), "warn");
             }
             done(src);
         });
@@ -995,7 +1162,7 @@
 
         probeMedia(filePath, cfg, function (info) {
             if (!info || !info.streams) {
-                log("No se pudo verificar el codec (ffprobe). Importando igual.", "warn");
+                log(t("log.probeFail"), "warn");
                 done(filePath);
                 return;
             }
@@ -1011,7 +1178,7 @@
     /* ---------------- Importación a Premiere ---------------- */
 
     function importIntoPremiere(filePath) {
-        log("Importando a Premiere...", "info");
+        log(t("log.importing"), "info");
 
         // JSON.stringify escapa correctamente \ y " para el literal ExtendScript.
         var script = 'importMedia(' + JSON.stringify(filePath.replace(/\//g, "\\")) + ')';
@@ -1023,10 +1190,10 @@
 
             if (result === "OK") {
                 setDot("ok");
-                log("Archivo importado al proyecto correctamente.", "ok");
+                log(t("log.importOk"), "ok");
             } else if (result === "EvalScript error.") {
                 setDot("error");
-                log("Error al ejecutar el script en Premiere.", "error");
+                log(t("log.importErr"), "error");
             } else {
                 setDot("error");
                 log(String(result), "error");
@@ -1044,7 +1211,7 @@
     }
 
     function resetDownloadBtn() {
-        el.btnDownload.textContent = "Descargar e Importar";
+        el.btnDownload.textContent = t("ui.btnDownload");
         el.btnDownload.classList.remove("btn-danger");
         refreshUiState();
     }
@@ -1157,28 +1324,28 @@
     /* ---------------- Arranque ---------------- */
 
     if (!nodeAvailable) {
-        log("Node.js no disponible en este panel. Verifica el manifest y la versión de CEP.", "error");
+        log(t("log.noNode"), "error");
     }
 
+    applyI18n();
     loadConfig();
     loadPrefs();
     refreshQualityFields();
 
     var startupCfg = getConfig();
     probeVersion(startupCfg.ytdlp, ["--version"], function (v) {
-        log(v ? "yt-dlp " + v + " listo."
-              : "yt-dlp no encontrado en el PATH. Configura la ruta arriba.",
+        log(v ? t("log.ytdlpReady", v) : t("log.noYtdlp"),
             v ? "ok" : "warn");
     });
     probeVersion(startupCfg.ffmpeg, ["-version"], function (v) {
-        if (v) log(v.split(" Copyright")[0] + " listo.", "ok");
+        if (v) log(t("log.ffmpegReady", v.split(" Copyright")[0]), "ok");
     });
 
     if (!refreshUiState()) {
         el.configSection.open = true;   // abrir config si falta algo
-        log("Revisa la configuración: hay rutas que no existen.", "info");
+        log(t("log.cfgCheck"), "info");
     } else {
-        log("Listo: pega una URL y descarga.", "ok");
+        log(t("log.ready"), "ok");
     }
     setDot("idle");
 })();
