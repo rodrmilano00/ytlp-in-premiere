@@ -5,7 +5,7 @@
 ; ============================================================
 
 #define AppName      "YT-DLP Importer"
-#define AppVersion   "1.0.0"
+#define AppVersion   "1.1.0"
 #define AppPublisher "rodrmilano00"
 #define BundleId     "com.ytdlp.premierepanel"
 
@@ -53,7 +53,7 @@ Type: filesandordirs; Name: "{app}\{#BundleId}"
 ; consola visible para que el usuario vea el progreso.
 Filename: "{cmd}"; \
     Parameters: "{code:WingetInstallCmd}"; \
-    Description: "Instalar herramientas faltantes con winget"; \
+    Description: "{code:WingetDesc}"; \
     Flags: postinstall shellexec unchecked skipifsilent; \
     Check: AnyToolMissing
 
@@ -62,6 +62,18 @@ var
     HasYt, HasFf, HasNode: Boolean;
     ToolsPage: TWizardPage;
     CurY: Integer;
+
+{ Texto bilingue: ES si el usuario eligio espanol, EN en otro caso }
+function L(Es, En: string): string;
+begin
+    if ActiveLanguage() = 'spanish' then Result := Es else Result := En;
+end;
+
+function WingetDesc(Param: string): string;
+begin
+    Result := L('Instalar herramientas faltantes con winget',
+                'Install missing tools with winget');
+end;
 
 { Busca un ejecutable en el PATH (where.exe cubre scoop/winget/etc.) }
 function InPath(ExeName: string): Boolean;
@@ -86,7 +98,9 @@ begin
         S := S + 'winget install Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements & ';
     if not HasNode then
         S := S + 'winget install OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements & ';
-    Result := S + 'echo. & echo Listo. Reinicia el panel si lo tenias abierto. & pause';
+    Result := S + 'echo. & echo ' +
+        L('Listo. Reinicia el panel si lo tenias abierto.',
+          'Done. Restart the panel if it was open.') + ' & pause';
 end;
 
 procedure ToolLine(Name, Hint: string; Found, Required: Boolean);
@@ -98,10 +112,11 @@ begin
     T.Top := CurY;
     T.Font.Size := 9;
     if Found then begin
-        T.Caption := '    ' + Name + ' — instalado';
+        T.Caption := '    ' + Name + L(' — instalado', ' — installed');
         T.Font.Color := $0059C735;
     end else begin
-        T.Caption := '    ' + Name + ' — NO encontrado   (' + Hint + ')';
+        T.Caption := '    ' + Name + L(' — NO encontrado', ' — NOT found') +
+                     '   (' + Hint + ')';
         T.Font.Color := $004B53E5;
     end;
     if not Required then T.Font.Style := [fsItalic];
@@ -116,19 +131,23 @@ begin
     HasNode := InPath('node.exe');
 
     ToolsPage := CreateCustomPage(wpSelectDir,
-        'Herramientas necesarias',
-        'El panel usa estos programas (deben estar en el PATH):');
+        L('Herramientas necesarias', 'Required tools'),
+        L('El panel usa estos programas (deben estar en el PATH):',
+          'The panel uses these programs (must be in the PATH):'));
 
     Lbl := TNewStaticText.Create(ToolsPage);
     Lbl.Parent := ToolsPage.Surface;
-    Lbl.Caption := 'Deteccion en este equipo:';
+    Lbl.Caption := L('Deteccion en este equipo:', 'Detection on this machine:');
     Lbl.Top := 0;
     Lbl.Left := 0;
 
     CurY := 24;
-    ToolLine('yt-dlp   (descargas)',                    'winget install yt-dlp.yt-dlp',    HasYt,   True);
-    ToolLine('ffmpeg   (audio, merge y transcode)',      'winget install Gyan.FFmpeg',      HasFf,   True);
-    ToolLine('Node.js  (recomendado: formatos YouTube)', 'winget install OpenJS.NodeJS.LTS', HasNode, False);
+    ToolLine('yt-dlp   ' + L('(descargas)', '(downloads)'),
+        'winget install yt-dlp.yt-dlp', HasYt, True);
+    ToolLine('ffmpeg   ' + L('(audio, merge y transcode)', '(audio, merge & transcode)'),
+        'winget install Gyan.FFmpeg', HasFf, True);
+    ToolLine('Node.js  ' + L('(recomendado: formatos YouTube)', '(recommended: YouTube formats)'),
+        'winget install OpenJS.NodeJS.LTS', HasNode, False);
 
     Lbl := TNewStaticText.Create(ToolsPage);
     Lbl.Parent := ToolsPage.Surface;
@@ -138,11 +157,16 @@ begin
     Lbl.Height := 70;
     Lbl.WordWrap := True;
     if AnyToolMissing() then
-        Lbl.Caption :=
+        Lbl.Caption := L(
             'Puedes continuar de todas formas: al finalizar se ofrecera ' +
             'instalar las faltantes automaticamente con winget. ' +
             'yt-dlp y ffmpeg son obligatorios; Node.js es recomendado ' +
-            '(sin el, yt-dlp no encuentra algunos formatos de YouTube).'
+            '(sin el, yt-dlp no encuentra algunos formatos de YouTube).',
+            'You can continue anyway: at the end you will be offered to ' +
+            'install the missing ones automatically with winget. ' +
+            'yt-dlp and ffmpeg are required; Node.js is recommended ' +
+            '(without it, yt-dlp cannot see some YouTube formats).')
     else
-        Lbl.Caption := 'Todas las herramientas estan disponibles. Puedes continuar.';
+        Lbl.Caption := L('Todas las herramientas estan disponibles. Puedes continuar.',
+                         'All tools are available. You can continue.');
 end;
